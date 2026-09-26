@@ -120,23 +120,27 @@ function renderContactRow(contact) {
 // ---------- Detail Kontak ----------
 
 /**
- * Muat detail kontak.
+ * Muat detail kontak dan segarkan kedua halaman sekaligus.
  *
- * $returnTo dipakai kalau aksi dilakukan dari halaman riwayat —
- * supaya setelah selesai user tetap di riwayat, bukan dilempar
- * balik ke detail kontak.
+ * Detail kontak dan halaman riwayat sama-sama di-render ulang, supaya
+ * angka di keduanya selalu sinkron — kalau hanya satu yang di-render,
+ * halaman lain masih menampilkan data sebelum transaksi terakhir.
+ *
+ * $returnTo hanya menentukan halaman mana yang ditampilkan setelah
+ * selesai, bukan mana yang di-render.
  */
 async function openContact(id, returnTo = 'contactDetailScreen') {
     showScreen(returnTo);
 
-    const body = document.getElementById(returnTo === 'contactHistoryScreen'
-        ? 'contactHistoryBody'
-        : 'contactDetailBody');
+    const detailBody = document.getElementById('contactDetailBody');
+    const historyBody = document.getElementById('contactHistoryBody');
+
+    const activeBody = returnTo === 'contactHistoryScreen' ? historyBody : detailBody;
+    activeBody.innerHTML = loadingBlock('Memuat detail...');
 
     if (returnTo === 'contactDetailScreen') {
         document.getElementById('contactDetailName').textContent = 'Memuat...';
     }
-    body.innerHTML = loadingBlock('Memuat detail...');
 
     try {
         // Kontak, deposit, dan pembayaran diambil bersamaan — ketiganya
@@ -150,7 +154,8 @@ async function openContact(id, returnTo = 'contactDetailScreen') {
         const result = await contactRes.json();
 
         if (!result.success) {
-            body.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
+            detailBody.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
+            historyBody.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
             document.getElementById('contactDetailPhone').textContent = '';
             return;
         }
@@ -163,19 +168,23 @@ async function openContact(id, returnTo = 'contactDetailScreen') {
         currentDeposits = depositResult.success ? (depositResult.data.history ?? []) : [];
         currentPayments = paymentResult.success ? (paymentResult.data ?? []) : [];
 
-        if (returnTo === 'contactDetailScreen') {
-            document.getElementById('contactDetailName').textContent = currentContact.name;
-            document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
+        // Header detail kontak
+        document.getElementById('contactDetailName').textContent = currentContact.name;
+        document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
 
-            body.innerHTML = renderContactDetail(result.data);
-            bindDetailActions();
-        } else {
-            // Kembali ke halaman riwayat — render ulang isinya, bukan detail
-            openHistoryScreen();
-        }
+        // Render detail kontak — piutang aktif di sini yang perlu
+        // ter-update setelah transaksi.
+        detailBody.innerHTML = renderContactDetail(result.data);
+        bindDetailActions();
+
+        // Render halaman riwayat, tapi jangan pindah ke sana.
+        // renderHistoryContent() hanya mengisi isinya.
+        renderHistoryContent();
     } catch (error) {
         console.error('openContact:', error);
-        body.innerHTML = errorBlock('Gagal memuat detail kontak');
+        const msg = errorBlock('Gagal memuat detail kontak');
+        detailBody.innerHTML = msg;
+        historyBody.innerHTML = msg;
     }
 }
 
@@ -235,8 +244,14 @@ function renderContactDetail({ contact, receivables }) {
 
 // ---------- Halaman Riwayat ----------
 
+// Pindah ke halaman riwayat
 function openHistoryScreen() {
     showScreen('contactHistoryScreen');
+    renderHistoryContent();
+}
+
+// Isi halaman riwayat, tanpa memindahkan layar
+function renderHistoryContent() {
     document.getElementById('historyContactName').textContent = currentContact?.name ?? '';
 
     const body = document.getElementById('contactHistoryBody');
@@ -561,7 +576,7 @@ async function saveReceivable(btn, id) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id, 'contactHistoryScreen');
+        await openContact(currentContact.id);
     } catch (error) {
         console.error('saveReceivable:', error);
         showToast('Gagal menyimpan piutang', 'error');
@@ -610,7 +625,7 @@ async function voidReceivable(id) {
 
             closeModal();
             showToast(result.message, 'success');
-            await openContact(currentContact.id, 'contactHistoryScreen');
+            await openContact(currentContact.id);
         } catch (error) {
             console.error('voidReceivable:', error);
             showToast('Gagal membatalkan piutang', 'error');
@@ -939,7 +954,7 @@ async function savePayment(btn) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id, 'contactHistoryScreen');
+        await openContact(currentContact.id);
     } catch (error) {
         console.error('savePayment:', error);
         showToast('Gagal menyimpan pembayaran', 'error');
