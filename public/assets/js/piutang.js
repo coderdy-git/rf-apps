@@ -429,8 +429,6 @@ function bindDetailActions() {
 
 // ---------- Detail Piutang ----------
 
-let currentReceivable = null;
-
 function openReceivableDetail(id) {
     const r = currentContactReceivable(id);
     if (!r) {
@@ -438,15 +436,12 @@ function openReceivableDetail(id) {
         return;
     }
 
-    currentReceivable = r;
-    showScreen('receivableDetailScreen');
-
-    document.getElementById('receivableDetailBody').innerHTML = `
-        <div class="bg-white rounded-2xl shadow-sm p-5 mb-5">
+    openModal('Detail Piutang', `
+        <div class="bg-gray-50 rounded-xl p-4 mb-5">
             <p class="text-lg font-semibold text-gray-800">${escapeHtml(r.description)}</p>
             <p class="text-3xl font-bold text-red-600 mt-3">${rupiah(r.amount)}</p>
             <p class="text-sm text-gray-500 mt-2">Dicatat ${tanggalSingkat(r.date)}</p>
-            ${r.notes ? `<p class="text-sm text-gray-600 mt-3 pt-3 border-t border-gray-100">${escapeHtml(r.notes)}</p>` : ''}
+            ${r.notes ? `<p class="text-sm text-gray-600 mt-3 pt-3 border-t border-gray-200">${escapeHtml(r.notes)}</p>` : ''}
         </div>
 
         <button data-action="pay" class="w-full min-h-[52px] bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold active:scale-95 transition-all mb-3">
@@ -460,15 +455,33 @@ function openReceivableDetail(id) {
         <button data-action="void" class="w-full min-h-[52px] bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold active:scale-95 transition-all">
             Batalkan Piutang
         </button>
-    `;
+    `);
 
-    const body = document.getElementById('receivableDetailBody');
+    const body = document.getElementById('modalBody');
+
+    // Modal ini ditutup dulu sebelum membuka modal aksi. Dua modal
+    // bertumpuk merepotkan di layar kecil: yang bawah harus
+    // disembunyikan, dan menutup yang atas bisa membingungkan.
+    // jedaBukaModal() menunggu animasi tutupnya selesai.
     body.querySelector('[data-action="pay"]')
-        ?.addEventListener('click', () => openPaymentForm(id));
+        ?.addEventListener('click', () => jedaBukaModal(() => openPaymentForm(id)));
     body.querySelector('[data-action="edit"]')
-        ?.addEventListener('click', () => openReceivableForm(r));
+        ?.addEventListener('click', () => jedaBukaModal(() => openReceivableForm(r)));
     body.querySelector('[data-action="void"]')
-        ?.addEventListener('click', () => voidReceivable(id));
+        ?.addEventListener('click', () => jedaBukaModal(() => voidReceivable(id)));
+}
+
+/**
+ * Tutup modal yang sedang terbuka, lalu jalankan aksi setelah
+ * animasi tutupnya selesai.
+ *
+ * Durasi 300ms harus sama dengan transition di #modalPanel. Kalau
+ * aksi dijalankan lebih cepat, modal lama masih dalam proses turun
+ * saat modal baru naik — hasilnya panelnya terlihat melompat.
+ */
+function jedaBukaModal(aksi) {
+    closeModal();
+    setTimeout(aksi, 320);
 }
 
 function currentContactReceivable(id) {
