@@ -222,8 +222,10 @@ async function openContact(id, returnTo = 'contactDetailScreen') {
         document.getElementById('contactDetailName').textContent = currentContact.name;
         document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
 
-        // Render detail kontak — piutang aktif di sini yang perlu
-        // ter-update setelah transaksi.
+        // Ringkasan diam di atas, daftar piutang di area yang bergulir
+        document.getElementById('contactSummary').innerHTML =
+            renderContactSummary(currentContact);
+
         detailBody.innerHTML = renderContactDetail(result.data);
         bindDetailActions();
 
@@ -238,13 +240,13 @@ async function openContact(id, returnTo = 'contactDetailScreen') {
     }
 }
 
-function renderContactDetail({ contact, receivables }) {
+// Ringkasan saldo — bagian yang diam di atas, tidak ikut bergulir
+function renderContactSummary(contact) {
     const piutang = Number(contact.outstanding_total) || 0;
     const deposit = Number(contact.deposit_balance) || 0;
 
     return `
-        <!-- Ringkasan saldo -->
-        <div class="grid grid-cols-2 gap-3 mb-6">
+        <div class="grid grid-cols-2 gap-3">
             <div class="bg-white rounded-xl shadow-sm p-4">
                 <span class="text-xs text-gray-500 block mb-1">Piutang Aktif</span>
                 <span class="text-lg font-bold ${piutang > 0 ? 'text-red-600' : 'text-gray-400'}">
@@ -258,28 +260,20 @@ function renderContactDetail({ contact, receivables }) {
                 </span>
             </div>
         </div>
+    `;
+}
 
+// Isi area yang bergulir — catatan dan daftar piutang aktif
+function renderContactDetail({ contact, receivables }) {
+    return `
         ${contact.notes ? `
-            <div class="bg-white rounded-xl shadow-sm p-4 mb-3">
+            <div class="bg-white rounded-xl shadow-sm p-4 mt-3">
                 <span class="text-xs text-gray-500 block">Catatan</span>
                 <span class="text-gray-800 text-sm">${escapeHtml(contact.notes)}</span>
             </div>
         ` : ''}
 
-        <!-- Piutang aktif -->
-        <div class="flex items-center justify-between mt-6 mb-3">
-            <h3 class="font-semibold text-gray-700">Piutang Aktif</h3>
-            <div class="flex items-center gap-1">
-                ${receivables.length ? `
-                    <button data-action="pay-selected" class="text-green-600 hover:text-green-700 text-sm font-semibold min-h-[44px] px-2">
-                        Bayar
-                    </button>
-                ` : ''}
-                <button data-action="add-receivable" class="text-primary hover:text-secondary text-sm font-semibold min-h-[44px] px-2">
-                    + Tambah
-                </button>
-            </div>
-        </div>
+        <h3 class="font-semibold text-gray-700 mt-5 mb-3">Piutang Aktif</h3>
 
         <div class="space-y-2">
             ${receivables.length
@@ -403,40 +397,23 @@ function renderDepositRow(d) {
 }
 
 function renderReceivableRow(r) {
+    // Seluruh baris bisa diketuk untuk membuka detail. Aksi seperti
+    // bayar/ubah/batal ada di dalam halaman detail itu, supaya barisnya
+    // tetap bersih dan tidak salah tekan.
     return `
-        <div class="bg-white rounded-xl shadow-sm p-4 flex items-start justify-between gap-3">
-            <div class="min-w-0">
-                <p class="font-medium text-gray-800 truncate">${escapeHtml(r.description)}</p>
-                <p class="text-xs text-gray-500 mt-0.5">${tanggalSingkat(r.date)}</p>
-                ${r.notes ? `<p class="text-xs text-gray-500 mt-1">${escapeHtml(r.notes)}</p>` : ''}
-            </div>
-            <div class="text-right flex-shrink-0">
-                <p class="font-semibold text-red-600">${rupiah(r.amount)}</p>
-                <div class="flex gap-1 mt-1 justify-end">
-                    <button data-action="pay-receivable" data-id="${r.id}"
-                            class="min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 flex items-center justify-center"
-                            aria-label="Bayar piutang">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
-                    </button>
-                    <button data-action="edit-receivable" data-id="${r.id}"
-                            class="min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-primary hover:bg-gray-100 flex items-center justify-center"
-                            aria-label="Ubah piutang">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                        </svg>
-                    </button>
-                    <button data-action="void-receivable" data-id="${r.id}"
-                            class="min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center"
-                            aria-label="Batalkan piutang">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
+        <button data-action="open-receivable" data-id="${r.id}"
+                class="w-full text-left bg-white rounded-xl shadow-sm p-4 flex items-center justify-between gap-3 active:scale-[0.98] transition-transform">
+            <span class="min-w-0">
+                <span class="block font-medium text-gray-800 truncate">${escapeHtml(r.description)}</span>
+                <span class="block text-xs text-gray-500 mt-0.5">${tanggalSingkat(r.date)}</span>
+            </span>
+            <span class="flex items-center gap-2 flex-shrink-0">
+                <span class="font-semibold text-red-600">${rupiah(r.amount)}</span>
+                <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </span>
+        </button>
     `;
 }
 
@@ -444,26 +421,54 @@ function renderReceivableRow(r) {
 function bindDetailActions() {
     const body = document.getElementById('contactDetailBody');
 
-    body.querySelector('[data-action="add-receivable"]')
-        ?.addEventListener('click', () => openReceivableForm());
-
-    body.querySelectorAll('[data-action="edit-receivable"]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const row = currentContactReceivable(btn.dataset.id);
-            if (row) openReceivableForm(row);
-        });
+    // Baris piutang membuka halaman detail — aksinya ada di sana
+    body.querySelectorAll('[data-action="open-receivable"]').forEach(btn => {
+        btn.addEventListener('click', () => openReceivableDetail(btn.dataset.id));
     });
+}
 
-    body.querySelectorAll('[data-action="void-receivable"]').forEach(btn => {
-        btn.addEventListener('click', () => voidReceivable(btn.dataset.id));
-    });
+// ---------- Detail Piutang ----------
 
-    body.querySelectorAll('[data-action="pay-receivable"]').forEach(btn => {
-        btn.addEventListener('click', () => openPaymentForm(btn.dataset.id));
-    });
+let currentReceivable = null;
 
-    body.querySelector('[data-action="pay-selected"]')
-        ?.addEventListener('click', () => openPaymentForm());
+function openReceivableDetail(id) {
+    const r = currentContactReceivable(id);
+    if (!r) {
+        showToast('Piutang tidak ditemukan', 'error');
+        return;
+    }
+
+    currentReceivable = r;
+    showScreen('receivableDetailScreen');
+
+    document.getElementById('receivableDetailBody').innerHTML = `
+        <div class="bg-white rounded-2xl shadow-sm p-5 mb-5">
+            <p class="text-lg font-semibold text-gray-800">${escapeHtml(r.description)}</p>
+            <p class="text-3xl font-bold text-red-600 mt-3">${rupiah(r.amount)}</p>
+            <p class="text-sm text-gray-500 mt-2">Dicatat ${tanggalSingkat(r.date)}</p>
+            ${r.notes ? `<p class="text-sm text-gray-600 mt-3 pt-3 border-t border-gray-100">${escapeHtml(r.notes)}</p>` : ''}
+        </div>
+
+        <button data-action="pay" class="w-full min-h-[52px] bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold active:scale-95 transition-all mb-3">
+            Bayar Piutang Ini
+        </button>
+
+        <button data-action="edit" class="w-full min-h-[52px] bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold active:scale-95 transition-all mb-3">
+            Ubah
+        </button>
+
+        <button data-action="void" class="w-full min-h-[52px] bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold active:scale-95 transition-all">
+            Batalkan Piutang
+        </button>
+    `;
+
+    const body = document.getElementById('receivableDetailBody');
+    body.querySelector('[data-action="pay"]')
+        ?.addEventListener('click', () => openPaymentForm(id));
+    body.querySelector('[data-action="edit"]')
+        ?.addEventListener('click', () => openReceivableForm(r));
+    body.querySelector('[data-action="void"]')
+        ?.addEventListener('click', () => voidReceivable(id));
 }
 
 function currentContactReceivable(id) {

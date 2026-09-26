@@ -267,8 +267,8 @@
     </div>
 
     <!-- Detail Kontak -->
-    <div id="contactDetailScreen" class="min-h-screen flex flex-col hidden">
-        <div class="bg-white shadow-sm px-4 py-4 flex items-center">
+    <div id="contactDetailScreen" class="h-screen flex flex-col hidden overflow-hidden relative">
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center flex-shrink-0">
             <button onclick="showScreen('contactsScreen')" class="-ml-2 min-h-[44px] pl-2 pr-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1 min-w-0">
                 <svg class="w-7 h-7 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
@@ -291,7 +291,44 @@
             </button>
         </div>
 
-        <div id="contactDetailBody" class="flex-1 p-6"></div>
+        <!-- Ringkasan saldo diam; hanya daftar piutang yang bergulir -->
+        <div id="contactSummary" class="px-5 pt-5 flex-shrink-0"></div>
+
+        <div class="flex-1 overflow-y-auto px-5 pb-28">
+            <div id="contactDetailBody"></div>
+        </div>
+
+        <!-- Aksi melayang: tambah transaksi dan bayar -->
+        <div class="absolute bottom-6 right-5 flex gap-3 z-40">
+            <button onclick="openReceivableForm()"
+                    class="w-14 h-14 bg-primary hover:bg-secondary text-white rounded-full shadow-lg active:scale-95 transition-all flex items-center justify-center"
+                    aria-label="Tambah piutang">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+            </button>
+            <button onclick="openPaymentForm()"
+                    class="w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg active:scale-95 transition-all flex items-center justify-center"
+                    aria-label="Bayar piutang">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Detail Piutang -->
+    <div id="receivableDetailScreen" class="min-h-screen flex flex-col hidden">
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center">
+            <button onclick="showScreen('contactDetailScreen')" class="-ml-2 min-h-[44px] pl-2 pr-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1">
+                <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="text-xl font-semibold text-gray-800">Detail Piutang</span>
+            </button>
+        </div>
+
+        <div id="receivableDetailBody" class="flex-1 p-6"></div>
     </div>
 
     <!-- Riwayat Transaksi Kontak -->
