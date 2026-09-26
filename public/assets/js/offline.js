@@ -13,11 +13,35 @@ let dbTerbuka = null;
 
 // ---------- IndexedDB ----------
 
+/**
+ * IndexedDB tidak selalu tersedia — misalnya di mode private sebagian
+ * browser, atau saat cookie dan penyimpanan situs diblokir. Tanpa
+ * pemeriksaan ini, pemanggilan pertama akan melempar dan menggagalkan
+ * seluruh alur, bukan sekadar menonaktifkan mode offline.
+ */
+function indexedDbTersedia() {
+    try {
+        return typeof indexedDB !== 'undefined' && indexedDB !== null;
+    } catch {
+        return false;
+    }
+}
+
 function bukaDb() {
     if (dbTerbuka) return Promise.resolve(dbTerbuka);
 
+    if (!indexedDbTersedia()) {
+        return Promise.reject(new Error('IndexedDB tidak tersedia di browser ini'));
+    }
+
     return new Promise((selesai, gagal) => {
-        const permintaan = indexedDB.open(DB_NAMA, DB_VERSI);
+        let permintaan;
+        try {
+            permintaan = indexedDB.open(DB_NAMA, DB_VERSI);
+        } catch (error) {
+            gagal(error);
+            return;
+        }
 
         permintaan.onupgradeneeded = (e) => {
             const db = e.target.result;
@@ -118,7 +142,20 @@ async function kirimAtauAntre(path, method, body, konteks = {}) {
         dibuat: Date.now(),
     };
 
-    await simpanKeAntrean(item);
+    try {
+        await simpanKeAntrean(item);
+    } catch (error) {
+        // Kalau penyimpanan gagal, jangan bilang "tersimpan" — datanya
+        // sebenarnya hilang, dan user berhak tahu sekarang, bukan nanti
+        // saat menyadari transaksinya tidak pernah masuk.
+        console.error('Gagal menyimpan ke antrean:', error);
+
+        return {
+            success: false,
+            message: 'Tidak ada koneksi dan transaksi gagal disimpan di perangkat ini',
+        };
+    }
+
     perbaruiPenandaAntrean();
 
     return {
@@ -160,7 +197,16 @@ let sedangSinkron = false;
 async function kirimAntrean() {
     if (sedangSinkron || !sedangOnline()) return;
 
-    const antrean = await ambilAntrean();
+    let antrean;
+    try {
+        antrean = await ambilAntrean();
+    } catch (error) {
+        // Penyimpanan tidak bisa dibuka — tidak ada yang bisa dikirim.
+        // Tidak perlu berisik, karena aplikasi tetap jalan normal.
+        console.warn('Antrean offline tidak bisa dibaca:', error.message);
+        return;
+    }
+
     if (!antrean.length) return;
 
     sedangSinkron = true;
@@ -349,7 +395,21 @@ async function renderAntreanScreen() {
     const list = document.getElementById('antreanList');
     if (!list) return;
 
-    const antrean = await ambilAntrean();
+    let antrean;
+    try {
+        antrean = await ambilAntrean();
+    } catch (error) {
+        list.innerHTML = `
+            <div class="bg-red-50 rounded-xl p-4">
+                <p class="text-red-500 text-center text-sm">
+                    Penyimpanan di perangkat ini tidak bisa dibuka,
+                    jadi antrean tidak bisa ditampilkan.
+                </p>
+            </div>
+        `;
+        document.getElementById('tombolKirimUlang')?.classList.add('hidden');
+        return;
+    }
 
     if (!antrean.length) {
         list.innerHTML = `
@@ -431,7 +491,14 @@ async function kirimAntreanSekarang() {
     }
 
     // Bersihkan tanda bentrok dulu supaya dicoba ulang
-    const antrean = await ambilAntrean();
+    let antrean;
+    try {
+        antrean = await ambilAntrean();
+    } catch (error) {
+        showToast('Penyimpanan tidak bisa dibuka di perangkat ini', 'error');
+        return;
+    }
+
     for (const item of antrean) {
         if (item.bentrok) {
             const db = await bukaDb();
