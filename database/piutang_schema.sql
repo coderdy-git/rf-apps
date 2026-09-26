@@ -59,30 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_receivables_open
     WHERE is_settled = FALSE AND is_void = FALSE;
 
 -- ------------------------------------------------------------
--- 3. deposits — mutasi deposit (saldo dihitung, tidak disimpan)
--- ------------------------------------------------------------
--- type:
---   'in'      setor manual, atau kelebihan bayar tunai
---   'applied' dipotong untuk melunasi piutang
---
--- Saldo = SUM(amount WHERE type='in' AND NOT is_void)
---       - SUM(amount WHERE type='applied' AND NOT is_void)
--- ------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS deposits (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    contact_id  UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
-    type        VARCHAR(10) NOT NULL CHECK (type IN ('in', 'applied')),
-    amount      NUMERIC(14,2) NOT NULL CHECK (amount > 0),
-    date        DATE NOT NULL DEFAULT CURRENT_DATE,
-    notes       TEXT,
-    is_void     BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_deposits_contact ON deposits(contact_id);
-
--- ------------------------------------------------------------
--- 4. payments — induk transaksi pembayaran
+-- 3. payments — induk transaksi pembayaran
 -- ------------------------------------------------------------
 -- Satu aksi bayar = satu baris di sini, dengan satu atau lebih
 -- rincian di payment_items.
@@ -106,6 +83,37 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_payments_contact ON payments(contact_id);
+
+-- ------------------------------------------------------------
+-- 4. deposits — mutasi deposit (saldo dihitung, tidak disimpan)
+-- ------------------------------------------------------------
+-- type:
+--   'in'      setor manual, atau kelebihan bayar tunai
+--   'applied' dipotong untuk melunasi piutang
+--
+-- Saldo = SUM(amount WHERE type='in' AND NOT is_void)
+--       - SUM(amount WHERE type='applied' AND NOT is_void)
+-- ------------------------------------------------------------
+-- payment_id menandai mutasi yang lahir dari transaksi pembayaran.
+-- Diisi hanya untuk type 'applied' dan kelebihan bayar, supaya saat
+-- transaksi dibatalkan, mutasi mana yang harus ikut batal bisa
+-- ditentukan dengan pasti — bukan dengan menebak dari catatan/tanggal.
+--
+-- Didefinisikan setelah payments karena mereferensinya.
+CREATE TABLE IF NOT EXISTS deposits (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    contact_id  UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+    type        VARCHAR(10) NOT NULL CHECK (type IN ('in', 'applied')),
+    amount      NUMERIC(14,2) NOT NULL CHECK (amount > 0),
+    date        DATE NOT NULL DEFAULT CURRENT_DATE,
+    notes       TEXT,
+    payment_id  UUID REFERENCES payments(id) ON DELETE SET NULL,
+    is_void     BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_deposits_contact ON deposits(contact_id);
+CREATE INDEX IF NOT EXISTS idx_deposits_payment ON deposits(payment_id);
 
 -- ------------------------------------------------------------
 -- 5. payment_items — rincian: piutang mana saja yang dilunasi

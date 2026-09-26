@@ -105,8 +105,25 @@ if (strpos($uri, '/api/') === 0) {
     $contacts = new \App\Controllers\ContactController();
     $receivables = new \App\Controllers\ReceivableController();
     $deposits = new \App\Controllers\DepositController();
+    $payments = new \App\Controllers\PaymentController();
 
     $UUID = '[0-9a-fA-F-]{36}';
+
+    // /api/contacts/{id}/payments/preview
+    if (preg_match("#^/api/contacts/($UUID)/payments/preview$#", $uri, $m)) {
+        if ($method === 'POST') { echo json_encode($payments->preview($m[1])); exit; }
+    }
+
+    // /api/contacts/{id}/payments
+    if (preg_match("#^/api/contacts/($UUID)/payments$#", $uri, $m)) {
+        if ($method === 'GET')  { echo json_encode($payments->index($m[1])); exit; }
+        if ($method === 'POST') { echo json_encode($payments->store($m[1])); exit; }
+    }
+
+    // /api/payments/{id}
+    if (preg_match("#^/api/payments/($UUID)$#", $uri, $m)) {
+        if ($method === 'DELETE') { echo json_encode($payments->destroy($m[1])); exit; }
+    }
 
     // /api/contacts/{id}/deposits
     if (preg_match("#^/api/contacts/($UUID)/deposits$#", $uri, $m)) {

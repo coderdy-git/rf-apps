@@ -6,6 +6,7 @@
 let currentContact = null;
 let currentReceivables = [];
 let currentDeposits = [];
+let currentPayments = [];
 let searchTimer = null;
 
 // ---------- Util ----------
@@ -126,11 +127,12 @@ async function openContact(id) {
     body.innerHTML = loadingBlock('Memuat detail...');
 
     try {
-        // Kontak dan deposit diambil bersamaan — keduanya independen,
-        // jadi tidak perlu menunggu satu selesai baru mulai yang lain.
-        const [contactRes, depositRes] = await Promise.all([
+        // Kontak, deposit, dan pembayaran diambil bersamaan — ketiganya
+        // independen, jadi tidak perlu menunggu satu selesai baru mulai.
+        const [contactRes, depositRes, paymentRes] = await Promise.all([
             apiFetch('/contacts/' + id, { method: 'GET' }),
             apiFetch('/contacts/' + id + '/deposits', { method: 'GET' }),
+            apiFetch('/contacts/' + id + '/payments', { method: 'GET' }),
         ]);
 
         const result = await contactRes.json();
@@ -141,10 +143,12 @@ async function openContact(id) {
         }
 
         const depositResult = await depositRes.json();
+        const paymentResult = await paymentRes.json();
 
         currentContact = result.data.contact;
         currentReceivables = result.data.receivables ?? [];
         currentDeposits = depositResult.success ? (depositResult.data.history ?? []) : [];
+        currentPayments = paymentResult.success ? (paymentResult.data ?? []) : [];
         document.getElementById('contactDetailName').textContent = currentContact.name;
 
         body.innerHTML = renderContactDetail(result.data);
@@ -193,9 +197,16 @@ function renderContactDetail({ contact, receivables }) {
         <!-- Piutang aktif -->
         <div class="flex items-center justify-between mt-6 mb-3">
             <h3 class="font-semibold text-gray-700">Piutang Aktif</h3>
-            <button data-action="add-receivable" class="text-primary hover:text-secondary text-sm font-semibold min-h-[44px] px-2">
-                + Tambah
-            </button>
+            <div class="flex items-center gap-1">
+                ${receivables.length ? `
+                    <button data-action="pay-selected" class="text-green-600 hover:text-green-700 text-sm font-semibold min-h-[44px] px-2">
+                        Bayar
+                    </button>
+                ` : ''}
+                <button data-action="add-receivable" class="text-primary hover:text-secondary text-sm font-semibold min-h-[44px] px-2">
+                    + Tambah
+                </button>
+            </div>
         </div>
 
         <div class="space-y-2 mb-6">
@@ -203,6 +214,16 @@ function renderContactDetail({ contact, receivables }) {
                 ? receivables.map(renderReceivableRow).join('')
                 : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Tidak ada piutang aktif</div>'}
         </div>
+
+        <!-- Riwayat pembayaran -->
+        ${currentPayments.length ? `
+            <div class="mt-6 mb-3">
+                <h3 class="font-semibold text-gray-700">Riwayat Pembayaran</h3>
+            </div>
+            <div class="space-y-2 mb-6">
+                ${currentPayments.map(renderPaymentRow).join('')}
+            </div>
+        ` : ''}
 
         <!-- Riwayat deposit -->
         <div class="flex items-center justify-between mt-6 mb-3">
@@ -216,6 +237,32 @@ function renderContactDetail({ contact, receivables }) {
             ${currentDeposits.length
                 ? currentDeposits.map(renderDepositRow).join('')
                 : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Belum ada mutasi deposit</div>'}
+        </div>
+    `;
+}
+
+function renderPaymentRow(p) {
+    const depositUsed = Number(p.deposit_used) || 0;
+    const cash = Number(p.cash_amount) || 0;
+
+    const parts = [];
+    if (depositUsed > 0) parts.push('deposit ' + rupiah(depositUsed));
+    if (cash > 0) parts.push('tunai ' + rupiah(cash));
+
+    return `
+        <div class="bg-white rounded-xl shadow-sm p-4 flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <p class="font-medium text-gray-800">Pelunasan ${rupiah(p.total_amount)}</p>
+                <p class="text-xs text-gray-500 mt-0.5">${tanggalSingkat(p.date)}</p>
+                <p class="text-xs text-gray-500 mt-1">${parts.join(' + ')}</p>
+            </div>
+            <button data-action="void-payment" data-id="${p.id}"
+                    class="min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center flex-shrink-0"
+                    aria-label="Batalkan pembayaran">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </button>
         </div>
     `;
 }
@@ -260,6 +307,13 @@ function renderReceivableRow(r) {
             <div class="text-right flex-shrink-0">
                 <p class="font-semibold text-red-600">${rupiah(r.amount)}</p>
                 <div class="flex gap-1 mt-1 justify-end">
+                    <button data-action="pay-receivable" data-id="${r.id}"
+                            class="min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-green-600 hover:bg-green-50 flex items-center justify-center"
+                            aria-label="Bayar piutang">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </button>
                     <button data-action="edit-receivable" data-id="${r.id}"
                             class="min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-primary hover:bg-gray-100 flex items-center justify-center"
                             aria-label="Ubah piutang">
@@ -298,11 +352,22 @@ function bindDetailActions() {
         btn.addEventListener('click', () => voidReceivable(btn.dataset.id));
     });
 
+    body.querySelectorAll('[data-action="pay-receivable"]').forEach(btn => {
+        btn.addEventListener('click', () => openPaymentForm(btn.dataset.id));
+    });
+
+    body.querySelector('[data-action="pay-selected"]')
+        ?.addEventListener('click', () => openPaymentForm());
+
     body.querySelector('[data-action="add-deposit"]')
         ?.addEventListener('click', openDepositForm);
 
     body.querySelectorAll('[data-action="void-deposit"]').forEach(btn => {
         btn.addEventListener('click', () => voidDeposit(btn.dataset.id));
+    });
+
+    body.querySelectorAll('[data-action="void-payment"]').forEach(btn => {
+        btn.addEventListener('click', () => voidPayment(btn.dataset.id));
     });
 }
 
@@ -638,6 +703,268 @@ async function voidDeposit(id) {
         } catch (error) {
             console.error('voidDeposit:', error);
             showToast('Gagal membatalkan setoran', 'error');
+        } finally {
+            setButtonLoading(e.currentTarget, false);
+        }
+    });
+}
+
+// ---------- Pembayaran ----------
+
+// Piutang yang sedang dicentang di layar bayar
+let selectedReceivables = new Set();
+
+/**
+ * Buka layar bayar. Kalau dipanggil dari tombol bayar di baris piutang,
+ * piutang itu langsung tercentang.
+ */
+function openPaymentForm(preselectId = null) {
+    if (!currentReceivables.length) {
+        showToast('Tidak ada piutang aktif untuk dibayar', 'error');
+        return;
+    }
+
+    selectedReceivables = new Set(preselectId ? [preselectId] : []);
+
+    const deposit = Number(currentContact.deposit_balance) || 0;
+
+    openModal('Bayar Piutang', `
+        <div class="space-y-4">
+            <!-- Pilih piutang -->
+            <div>
+                <label class="block text-gray-600 mb-2 text-sm font-medium">Pilih piutang yang dilunasi</label>
+                <div class="space-y-2 max-h-56 overflow-y-auto border border-gray-200 rounded-xl p-2">
+                    ${currentReceivables.map(r => `
+                        <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <input type="checkbox" data-pay-id="${r.id}"
+                                   ${selectedReceivables.has(r.id) ? 'checked' : ''}
+                                   class="mt-1 w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary">
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-sm font-medium text-gray-800 truncate">${escapeHtml(r.description)}</span>
+                                <span class="block text-xs text-gray-500">${tanggalSingkat(r.date)}</span>
+                            </span>
+                            <span class="text-sm font-semibold text-red-600 flex-shrink-0">${rupiah(r.amount)}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Ringkasan perhitungan -->
+            <div class="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Total dipilih</span>
+                    <span id="sum-total" class="font-semibold text-gray-800">Rp 0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-600">Potong deposit</span>
+                    <span id="sum-deposit" class="font-semibold text-amber-600">Rp 0</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-200 pt-2">
+                    <span class="text-gray-700 font-medium">Sisa dibayar tunai</span>
+                    <span id="sum-cash" class="font-bold text-gray-900">Rp 0</span>
+                </div>
+                <div class="flex justify-between text-xs text-gray-500">
+                    <span>Saldo deposit tersedia</span>
+                    <span>${rupiah(deposit)}</span>
+                </div>
+            </div>
+
+            <!-- Nominal tunai -->
+            <div>
+                <label class="block text-gray-600 mb-2 text-sm font-medium">Uang Tunai Diterima</label>
+                <input id="p-cash" type="text" inputmode="numeric" placeholder="0" value=""
+                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                <p id="p-hint" class="text-xs text-gray-500 mt-2"></p>
+            </div>
+
+            <div>
+                <label class="block text-gray-600 mb-2 text-sm font-medium">Tanggal</label>
+                <input id="p-date" type="date" value="${new Date().toISOString().slice(0, 10)}"
+                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+
+            <div>
+                <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
+                <textarea id="p-notes" rows="2" placeholder="Opsional"
+                          class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+            </div>
+
+            <button id="p-submit" class="w-full min-h-[52px] bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold active:scale-95 transition-all">
+                Simpan Pembayaran
+            </button>
+        </div>
+    `);
+
+    // Centang piutang
+    document.querySelectorAll('[data-pay-id]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            if (cb.checked) {
+                selectedReceivables.add(cb.dataset.payId);
+            } else {
+                selectedReceivables.delete(cb.dataset.payId);
+            }
+            refreshPreview();
+        });
+    });
+
+    // Hitung ulang saat tunai diisi/diubah
+    document.getElementById('p-cash').addEventListener('input', updateCashHint);
+
+    document.getElementById('p-submit').addEventListener('click', (e) => {
+        savePayment(e.currentTarget);
+    });
+
+    refreshPreview();
+}
+
+/**
+ * Minta perhitungan ke server, lalu perbarui tiga angka dan hint tunai.
+ * Perhitungan di server supaya aturannya hanya ada di satu tempat.
+ */
+async function refreshPreview() {
+    const ids = Array.from(selectedReceivables);
+
+    // Belum ada yang dicentang — nol kan tanpa perlu tanya server
+    if (!ids.length) {
+        setSummary({ total: 0, deposit_used: 0, cash_required: 0 });
+        return;
+    }
+
+    try {
+        const response = await apiFetch(
+            '/contacts/' + currentContact.id + '/payments/preview',
+            { method: 'POST', body: JSON.stringify({ receivable_ids: ids }) }
+        );
+        const result = await response.json();
+
+        if (!result.success) {
+            showToast(result.message || 'Gagal menghitung', 'error');
+            return;
+        }
+
+        setSummary(result.data);
+    } catch (error) {
+        console.error('refreshPreview:', error);
+    }
+}
+
+function setSummary(data) {
+    document.getElementById('sum-total').textContent = rupiah(data.total);
+    document.getElementById('sum-deposit').textContent = '−' + rupiah(data.deposit_used);
+    document.getElementById('sum-cash').textContent = rupiah(data.cash_required);
+
+    // Simpan supaya hint tidak perlu menunggu request lagi
+    window.__cashRequired = Number(data.cash_required) || 0;
+    updateCashHint();
+}
+
+function updateCashHint() {
+    const hint = document.getElementById('p-hint');
+    const required = window.__cashRequired || 0;
+    const input = document.getElementById('p-cash');
+    const cash = Number(String(input.value).replace(/[^\d]/g, '')) || 0;
+
+    if (required === 0 && cash === 0) {
+        hint.textContent = '';
+        return;
+    }
+
+    if (cash < required) {
+        hint.innerHTML = `<span class="text-red-600">Kurang ${rupiah(required - cash)}</span>`;
+    } else if (cash > required) {
+        hint.innerHTML = `<span class="text-green-600">Kelebihan ${rupiah(cash - required)} masuk deposit</span>`;
+    } else {
+        hint.innerHTML = `<span class="text-green-600">Pas</span>`;
+    }
+}
+
+async function savePayment(btn) {
+    const ids = Array.from(selectedReceivables);
+
+    if (!ids.length) {
+        showToast('Pilih minimal satu piutang', 'error');
+        return;
+    }
+
+    const payload = {
+        receivable_ids: ids,
+        cash_amount: document.getElementById('p-cash').value.trim() || '0',
+        date: document.getElementById('p-date').value,
+        notes: document.getElementById('p-notes').value.trim(),
+    };
+
+    setButtonLoading(btn, true, 'Memproses...');
+
+    try {
+        const response = await apiFetch(
+            '/contacts/' + currentContact.id + '/payments',
+            { method: 'POST', body: JSON.stringify(payload) }
+        );
+        const result = await response.json();
+
+        if (!result.success) {
+            showToast(result.message || 'Gagal menyimpan pembayaran', 'error');
+            return;
+        }
+
+        closeModal();
+        showToast(result.message, 'success');
+        await openContact(currentContact.id);
+    } catch (error) {
+        console.error('savePayment:', error);
+        showToast('Gagal menyimpan pembayaran', 'error');
+    } finally {
+        setButtonLoading(btn, false);
+    }
+}
+
+// ---------- Batalkan Transaksi Pembayaran ----------
+
+async function voidPayment(id) {
+    const row = currentPayments.find(p => p.id === id);
+
+    openModal('Batalkan Pembayaran', `
+        <p class="text-gray-600 mb-2">Batalkan transaksi berikut?</p>
+        ${row ? `
+            <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                <p class="font-semibold text-gray-800">Pelunasan ${rupiah(row.total_amount)}</p>
+                <p class="text-xs text-gray-500 mt-1">${tanggalSingkat(row.date)}</p>
+            </div>
+        ` : ''}
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5">
+            <p class="text-sm text-amber-800">
+                Piutang yang dilunasi akan kembali aktif, dan pemakaian
+                deposit dari transaksi ini ikut dibatalkan.
+            </p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="closeModal()" class="flex-1 min-h-[52px] bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-semibold active:scale-95 transition-all">
+                Batal
+            </button>
+            <button id="vp-submit" class="flex-1 min-h-[52px] bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold active:scale-95 transition-all">
+                Ya, Batalkan
+            </button>
+        </div>
+    `);
+
+    document.getElementById('vp-submit').addEventListener('click', async (e) => {
+        setButtonLoading(e.currentTarget, true, 'Membatalkan...');
+
+        try {
+            const response = await apiFetch('/payments/' + id, { method: 'DELETE' });
+            const result = await response.json();
+
+            if (!result.success) {
+                showToast(result.message || 'Gagal membatalkan', 'error');
+                return;
+            }
+
+            closeModal();
+            showToast(result.message, 'success');
+            await openContact(currentContact.id);
+        } catch (error) {
+            console.error('voidPayment:', error);
+            showToast('Gagal membatalkan transaksi', 'error');
         } finally {
             setButtonLoading(e.currentTarget, false);
         }
