@@ -5,6 +5,7 @@
 
 let currentContact = null;
 let currentReceivables = [];
+let currentDeposits = [];
 let searchTimer = null;
 
 // ---------- Util ----------
@@ -125,16 +126,25 @@ async function openContact(id) {
     body.innerHTML = loadingBlock('Memuat detail...');
 
     try {
-        const response = await apiFetch('/contacts/' + id, { method: 'GET' });
-        const result = await response.json();
+        // Kontak dan deposit diambil bersamaan — keduanya independen,
+        // jadi tidak perlu menunggu satu selesai baru mulai yang lain.
+        const [contactRes, depositRes] = await Promise.all([
+            apiFetch('/contacts/' + id, { method: 'GET' }),
+            apiFetch('/contacts/' + id + '/deposits', { method: 'GET' }),
+        ]);
+
+        const result = await contactRes.json();
 
         if (!result.success) {
             body.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
             return;
         }
 
+        const depositResult = await depositRes.json();
+
         currentContact = result.data.contact;
         currentReceivables = result.data.receivables ?? [];
+        currentDeposits = depositResult.success ? (depositResult.data.history ?? []) : [];
         document.getElementById('contactDetailName').textContent = currentContact.name;
 
         body.innerHTML = renderContactDetail(result.data);
@@ -193,6 +203,49 @@ function renderContactDetail({ contact, receivables }) {
                 ? receivables.map(renderReceivableRow).join('')
                 : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Tidak ada piutang aktif</div>'}
         </div>
+
+        <!-- Riwayat deposit -->
+        <div class="flex items-center justify-between mt-6 mb-3">
+            <h3 class="font-semibold text-gray-700">Riwayat Deposit</h3>
+            <button data-action="add-deposit" class="text-primary hover:text-secondary text-sm font-semibold min-h-[44px] px-2">
+                + Setor
+            </button>
+        </div>
+
+        <div class="space-y-2">
+            ${currentDeposits.length
+                ? currentDeposits.map(renderDepositRow).join('')
+                : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Belum ada mutasi deposit</div>'}
+        </div>
+    `;
+}
+
+function renderDepositRow(d) {
+    const isIn = d.type === 'in';
+    const label = isIn ? 'Setor' : 'Potong piutang';
+    const sign = isIn ? '+' : '−';
+    const color = isIn ? 'text-green-600' : 'text-amber-600';
+
+    return `
+        <div class="bg-white rounded-xl shadow-sm p-4 flex items-start justify-between gap-3">
+            <div class="min-w-0">
+                <p class="font-medium text-gray-800">${label}</p>
+                <p class="text-xs text-gray-500 mt-0.5">${tanggalSingkat(d.date)}</p>
+                ${d.notes ? `<p class="text-xs text-gray-500 mt-1">${escapeHtml(d.notes)}</p>` : ''}
+            </div>
+            <div class="text-right flex-shrink-0">
+                <p class="font-semibold ${color}">${sign}${rupiah(d.amount)}</p>
+                ${isIn ? `
+                    <button data-action="void-deposit" data-id="${d.id}"
+                            class="min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex items-center justify-center ml-auto mt-1"
+                            aria-label="Batalkan setoran">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                ` : ''}
+            </div>
+        </div>
     `;
 }
 
@@ -243,6 +296,13 @@ function bindDetailActions() {
 
     body.querySelectorAll('[data-action="void-receivable"]').forEach(btn => {
         btn.addEventListener('click', () => voidReceivable(btn.dataset.id));
+    });
+
+    body.querySelector('[data-action="add-deposit"]')
+        ?.addEventListener('click', openDepositForm);
+
+    body.querySelectorAll('[data-action="void-deposit"]').forEach(btn => {
+        btn.addEventListener('click', () => voidDeposit(btn.dataset.id));
     });
 }
 
@@ -459,6 +519,125 @@ async function voidReceivable(id) {
         } catch (error) {
             console.error('voidReceivable:', error);
             showToast('Gagal membatalkan piutang', 'error');
+        } finally {
+            setButtonLoading(e.currentTarget, false);
+        }
+    });
+}
+
+// ---------- Setor Deposit ----------
+
+function openDepositForm() {
+    openModal('Setor Deposit', `
+        <div class="space-y-4">
+            <div>
+                <label class="block text-gray-600 mb-2 text-sm font-medium">Nilai Setoran <span class="text-red-500">*</span></label>
+                <input id="d-amount" type="text" inputmode="numeric" placeholder="100000"
+                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            <div>
+                <label class="block text-gray-600 mb-2 text-sm font-medium">Tanggal</label>
+                <input id="d-date" type="date" value="${new Date().toISOString().slice(0, 10)}"
+                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+            </div>
+            <div>
+                <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
+                <textarea id="d-notes" rows="2" placeholder="Opsional"
+                          class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+            </div>
+            <button id="d-submit" class="w-full min-h-[52px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
+                Simpan Setoran
+            </button>
+        </div>
+    `);
+
+    document.getElementById('d-submit').addEventListener('click', (e) => {
+        saveDeposit(e.currentTarget);
+    });
+}
+
+async function saveDeposit(btn) {
+    const payload = {
+        amount: document.getElementById('d-amount').value.trim(),
+        date: document.getElementById('d-date').value,
+        notes: document.getElementById('d-notes').value.trim(),
+    };
+
+    if (!payload.amount || Number(payload.amount.replace(/[^\d]/g, '')) <= 0) {
+        showToast('Nilai setoran harus lebih dari 0', 'error');
+        return;
+    }
+
+    setButtonLoading(btn, true, 'Menyimpan...');
+
+    try {
+        const response = await apiFetch(
+            '/contacts/' + currentContact.id + '/deposits',
+            { method: 'POST', body: JSON.stringify(payload) }
+        );
+        const result = await response.json();
+
+        if (!result.success) {
+            showToast(result.message || 'Gagal menyimpan', 'error');
+            return;
+        }
+
+        closeModal();
+        showToast(result.message, 'success');
+        await openContact(currentContact.id);
+    } catch (error) {
+        console.error('saveDeposit:', error);
+        showToast('Gagal menyimpan setoran', 'error');
+    } finally {
+        setButtonLoading(btn, false);
+    }
+}
+
+// ---------- Batalkan Mutasi Deposit ----------
+
+async function voidDeposit(id) {
+    const row = currentDeposits.find(d => d.id === id);
+
+    openModal('Batalkan Setoran', `
+        <p class="text-gray-600 mb-2">Batalkan setoran berikut?</p>
+        ${row ? `
+            <div class="bg-gray-50 rounded-xl p-4 mb-4">
+                <p class="font-semibold text-green-600">${rupiah(row.amount)}</p>
+                <p class="text-xs text-gray-500 mt-1">${tanggalSingkat(row.date)}</p>
+            </div>
+        ` : ''}
+        <p class="text-sm text-gray-500 mb-5">
+            Saldo deposit akan berkurang sebesar nilai ini. Kalau depositnya
+            sudah terpakai untuk piutang, pembatalan akan ditolak.
+        </p>
+        <div class="flex gap-3">
+            <button onclick="closeModal()" class="flex-1 min-h-[52px] bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-semibold active:scale-95 transition-all">
+                Batal
+            </button>
+            <button id="vd-submit" class="flex-1 min-h-[52px] bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold active:scale-95 transition-all">
+                Ya, Batalkan
+            </button>
+        </div>
+    `);
+
+    document.getElementById('vd-submit').addEventListener('click', async (e) => {
+        setButtonLoading(e.currentTarget, true, 'Membatalkan...');
+
+        try {
+            const response = await apiFetch('/deposits/' + id, { method: 'DELETE' });
+            const result = await response.json();
+
+            if (!result.success) {
+                showToast(result.message || 'Gagal membatalkan', 'error');
+                return;
+            }
+
+            closeModal();
+            showToast(result.message, 'success');
+            await openContact(currentContact.id);
+        } catch (error) {
+            console.error('voidDeposit:', error);
+            showToast('Gagal membatalkan setoran', 'error');
         } finally {
             setButtonLoading(e.currentTarget, false);
         }

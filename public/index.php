@@ -104,9 +104,25 @@ if (strpos($uri, '/api/') === 0) {
     // --- Buku Piutang ---
     $contacts = new \App\Controllers\ContactController();
     $receivables = new \App\Controllers\ReceivableController();
+    $deposits = new \App\Controllers\DepositController();
+
+    $UUID = '[0-9a-fA-F-]{36}';
+
+    // /api/contacts/{id}/deposits
+    if (preg_match("#^/api/contacts/($UUID)/deposits$#", $uri, $m)) {
+        $contactId = $m[1];
+
+        if ($method === 'GET')  { echo json_encode($deposits->index($contactId)); exit; }
+        if ($method === 'POST') { echo json_encode($deposits->store($contactId)); exit; }
+    }
+
+    // /api/deposits/{id}
+    if (preg_match("#^/api/deposits/($UUID)$#", $uri, $m)) {
+        if ($method === 'DELETE') { echo json_encode($deposits->destroy($m[1])); exit; }
+    }
 
     // /api/contacts  dan  /api/contacts/{id}
-    if (preg_match('#^/api/contacts(?:/([0-9a-fA-F-]{36}))?$#', $uri, $m)) {
+    if (preg_match("#^/api/contacts(?:/($UUID))?$#", $uri, $m)) {
         $id = $m[1] ?? null;
 
         if ($id === null) {
