@@ -56,53 +56,83 @@ if (strpos($uri, '/api/') === 0) {
         }
     }
 
-    $controller = new \App\Controllers\AttendanceController();
+    // --- Absensi ---
+    $attendance = new \App\Controllers\AttendanceController();
 
     switch ($uri) {
         case '/api/checkin':
             if ($method === 'POST') {
-                $result = $controller->checkIn();
-                echo json_encode($result);
+                echo json_encode($attendance->checkIn());
+                exit;
             }
             break;
 
         case '/api/checkout':
             if ($method === 'POST') {
-                $result = $controller->checkOut();
-                echo json_encode($result);
+                echo json_encode($attendance->checkOut());
+                exit;
             }
             break;
 
         case '/api/status':
             if ($method === 'POST') {
-                $result = $controller->submitStatus();
-                echo json_encode($result);
-            } elseif ($method === 'GET') {
-                $result = $controller->getTodayStatus();
-                echo json_encode($result);
+                echo json_encode($attendance->submitStatus());
+                exit;
+            }
+            if ($method === 'GET') {
+                echo json_encode($attendance->getTodayStatus());
+                exit;
             }
             break;
 
         case '/api/history':
             if ($method === 'GET') {
-                $result = $controller->getHistory();
-                echo json_encode($result);
+                echo json_encode($attendance->getHistory());
+                exit;
             }
             break;
 
         case '/api/health':
-            // Health check endpoint
             echo json_encode([
                 'status' => 'ok',
                 'timestamp' => date('Y-m-d H:i:s'),
-                'php_version' => PHP_VERSION
+                'php_version' => PHP_VERSION,
             ]);
-            break;
-
-        default:
-            http_response_code(404);
-            echo json_encode(['error' => 'Not found']);
+            exit;
     }
+
+    // --- Buku Piutang ---
+    $contacts = new \App\Controllers\ContactController();
+    $receivables = new \App\Controllers\ReceivableController();
+
+    // /api/contacts  dan  /api/contacts/{id}
+    if (preg_match('#^/api/contacts(?:/([0-9a-fA-F-]{36}))?$#', $uri, $m)) {
+        $id = $m[1] ?? null;
+
+        if ($id === null) {
+            if ($method === 'GET')  { echo json_encode($contacts->index()); exit; }
+            if ($method === 'POST') { echo json_encode($contacts->store()); exit; }
+        } else {
+            if ($method === 'GET')    { echo json_encode($contacts->show($id)); exit; }
+            if ($method === 'PATCH')  { echo json_encode($contacts->update($id)); exit; }
+            if ($method === 'DELETE') { echo json_encode($contacts->destroy($id)); exit; }
+        }
+    }
+
+    // /api/receivables  dan  /api/receivables/{id}
+    if (preg_match('#^/api/receivables(?:/([0-9a-fA-F-]{36}))?$#', $uri, $m)) {
+        $id = $m[1] ?? null;
+
+        if ($id === null) {
+            if ($method === 'POST') { echo json_encode($receivables->store()); exit; }
+        } else {
+            if ($method === 'PATCH')  { echo json_encode($receivables->update($id)); exit; }
+            if ($method === 'DELETE') { echo json_encode($receivables->destroy($id)); exit; }
+        }
+    }
+
+    http_response_code(404);
+    echo json_encode(['error' => 'Not found']);
     exit;
 }
 
