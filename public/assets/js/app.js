@@ -118,6 +118,10 @@ function showScreen(screenId) {
     if (screenId === 'contactsScreen' && typeof loadContacts === 'function') {
         loadContacts();
     }
+
+    if (screenId === 'antreanScreen' && typeof renderAntreanScreen === 'function') {
+        renderAntreanScreen();
+    }
 }
 
 /**
