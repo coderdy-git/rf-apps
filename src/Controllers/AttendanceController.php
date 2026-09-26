@@ -2,79 +2,16 @@
 
 namespace App\Controllers;
 
-use App\Config\Database;
 use App\Models\AttendanceModel;
 
-class AttendanceController
+class AttendanceController extends BaseController
 {
     private AttendanceModel $attendanceModel;
-    private Database $db;
-
-    private ?string $userId = null;
-    private bool $authAttempted = false;
 
     public function __construct()
     {
-        $this->db = new Database();
+        parent::__construct();
         $this->attendanceModel = new AttendanceModel($this->db);
-    }
-
-    /**
-     * Authenticate the request via Supabase Auth access token
-     * (issued by Google login on the frontend).
-     */
-    private function authenticate(): bool
-    {
-        if ($this->authAttempted) {
-            return $this->userId !== null;
-        }
-        $this->authAttempted = true;
-
-        $token = $this->bearerToken();
-        if (!$token) {
-            return false;
-        }
-
-        $user = $this->db->getUser($token);
-        if (!$user) {
-            return false;
-        }
-
-        // Pass the token through so RLS evaluates auth.uid() as this user.
-        $this->db->setAccessToken($token);
-        $this->userId = $user['id'];
-
-        return true;
-    }
-
-    /**
-     * Extract bearer token from the Authorization header.
-     */
-    private function bearerToken(): ?string
-    {
-        $header = $_SERVER['HTTP_AUTHORIZATION']
-            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
-            ?? '';
-
-        if ($header === '' && function_exists('apache_request_headers')) {
-            $headers = apache_request_headers();
-            $header = $headers['Authorization'] ?? $headers['authorization'] ?? '';
-        }
-
-        if (stripos($header, 'Bearer ') === 0) {
-            return substr($header, 7);
-        }
-
-        return null;
-    }
-
-    /**
-     * Get current user ID, or null if unauthenticated.
-     */
-    private function getCurrentUserId(): ?string
-    {
-        $this->authenticate();
-        return $this->userId;
     }
 
     /**
@@ -152,10 +89,9 @@ class AttendanceController
             }
         }
 
-        // Read JSON body (frontend sends application/json)
-        $input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $statusType = $input['status_type'] ?? $_POST['status_type'] ?? '';
-        $notes = $input['notes'] ?? $_POST['notes'] ?? '';
+        $input = $this->jsonInput();
+        $statusType = $input['status_type'] ?? '';
+        $notes = $input['notes'] ?? '';
 
         if (empty($statusType)) {
             return ['success' => false, 'message' => 'Status type is required'];

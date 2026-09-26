@@ -65,15 +65,27 @@
         </div>
 
         <div class="flex-1 flex flex-col items-center justify-center">
-            <!-- Absensi Menu -->
-            <button onclick="showScreen('attendanceScreen')" class="bg-white rounded-2xl shadow-md p-8 w-40 flex flex-col items-center justify-center space-y-4 active:scale-95 transition-transform">
-                <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <span class="text-lg font-semibold text-gray-700">Absensi</span>
-            </button>
+            <div class="grid grid-cols-2 gap-5 w-full max-w-sm">
+                <!-- Absensi Menu -->
+                <button onclick="showScreen('attendanceScreen')" class="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center justify-center space-y-3 active:scale-95 transition-transform">
+                    <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <span class="text-base font-semibold text-gray-700">Absensi</span>
+                </button>
+
+                <!-- Piutang Menu -->
+                <button onclick="showScreen('contactsScreen')" class="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center justify-center space-y-3 active:scale-95 transition-transform">
+                    <div class="w-16 h-16 bg-secondary rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                    </div>
+                    <span class="text-base font-semibold text-gray-700">Piutang</span>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -222,14 +234,138 @@
         </div>
     </div>
 
+    <!-- ============ BUKU PIUTANG ============ -->
+
+    <!-- Daftar Kontak -->
+    <div id="contactsScreen" class="h-screen flex flex-col hidden overflow-hidden relative">
+        <!-- Header tetap di tempat, tidak ikut ter-scroll -->
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center flex-shrink-0">
+            <button onclick="showScreen('menuScreen')" class="-ml-2 min-h-[44px] pl-2 pr-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1">
+                <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="text-xl font-semibold text-gray-800">Piutang</span>
+            </button>
+        </div>
+
+        <!-- Hanya bagian ini yang ter-scroll -->
+        <div class="flex-1 overflow-y-auto p-6 pb-28">
+            <div id="contactList" class="space-y-3"></div>
+        </div>
+
+        <!-- Tombol tambah melayang.
+             Diposisikan absolute terhadap layar ini, bukan fixed terhadap
+             viewport, supaya otomatis ikut tersembunyi saat pindah halaman
+             tanpa bergantung pada perilaku display:none. -->
+        <button onclick="openContactForm()"
+                class="absolute bottom-6 right-6 w-14 h-14 bg-primary hover:bg-secondary text-white rounded-full shadow-lg active:scale-95 transition-all flex items-center justify-center z-40"
+                aria-label="Tambah kontak">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Detail Kontak -->
+    <div id="contactDetailScreen" class="h-screen flex flex-col hidden overflow-hidden relative">
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center flex-shrink-0">
+            <button onclick="showScreen('contactsScreen')" class="-ml-2 min-h-[44px] pl-2 pr-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1 min-w-0">
+                <svg class="w-7 h-7 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="min-w-0 text-left">
+                    <span id="contactDetailName" class="block text-xl font-semibold text-gray-800 truncate">Kontak</span>
+                    <span id="contactDetailPhone" class="block text-sm text-gray-500 truncate"></span>
+                </span>
+            </button>
+            <div class="flex-1 min-w-[8px]"></div>
+            <button onclick="openHistoryScreen()" class="min-w-[44px] min-h-[44px] rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" aria-label="Riwayat transaksi">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </button>
+            <button onclick="openContactForm(currentContact)" class="min-w-[44px] min-h-[44px] -mr-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" aria-label="Ubah kontak">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Ringkasan saldo diam; hanya daftar piutang yang bergulir -->
+        <div id="contactSummary" class="px-5 pt-5 flex-shrink-0"></div>
+
+        <div class="flex-1 overflow-y-auto px-5 pb-28">
+            <div id="contactDetailBody"></div>
+        </div>
+
+        <!-- Aksi melayang: tambah transaksi dan bayar -->
+        <div class="absolute bottom-6 right-5 flex gap-3 z-40">
+            <button onclick="openReceivableForm()"
+                    class="w-14 h-14 bg-primary hover:bg-secondary text-white rounded-full shadow-lg active:scale-95 transition-all flex items-center justify-center"
+                    aria-label="Tambah piutang">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+            </button>
+            <button onclick="openPaymentForm()"
+                    class="w-14 h-14 bg-green-500 hover:bg-green-600 text-white rounded-full shadow-lg active:scale-95 transition-all flex items-center justify-center"
+                    aria-label="Bayar piutang">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Riwayat Transaksi Kontak -->
+    <div id="contactHistoryScreen" class="min-h-screen flex flex-col hidden">
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center">
+            <button onclick="showScreen('contactDetailScreen')" class="-ml-2 min-h-[44px] pl-2 pr-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1 min-w-0">
+                <svg class="w-7 h-7 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="min-w-0 text-left">
+                    <span class="block text-xl font-semibold text-gray-800">Riwayat</span>
+                    <span id="historyContactName" class="block text-sm text-gray-500 truncate"></span>
+                </span>
+            </button>
+        </div>
+
+        <div id="contactHistoryBody" class="flex-1 p-6"></div>
+    </div>
+
     <!-- Toast Notification -->
     <div id="toast" class="fixed bottom-6 left-6 right-6 bg-gray-800 text-white px-6 py-4 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
         <p id="toastMessage">Message</p>
+    </div>
+
+    <!-- Modal Form — bottom sheet, muncul dari bawah -->
+    <div id="modal" class="fixed inset-0 bg-black/50 hidden items-end justify-center z-50">
+        <div id="modalPanel"
+             class="bg-white rounded-t-3xl shadow-xl w-full max-w-lg flex flex-col max-h-[92vh]
+                    translate-y-full transition-transform duration-300 ease-out">
+            <!-- Gagang geser -->
+            <div class="pt-3 pb-1 flex justify-center flex-shrink-0">
+                <div class="w-10 h-1 rounded-full bg-gray-300"></div>
+            </div>
+
+            <div class="flex items-center justify-between px-5 pb-3 flex-shrink-0">
+                <h3 id="modalTitle" class="text-lg font-bold text-gray-800">Judul</h3>
+                <button onclick="closeModal()" class="-mr-2 min-w-[44px] min-h-[44px] rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" aria-label="Tutup">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="modalBody" class="px-5 pb-6 overflow-y-auto"></div>
+        </div>
     </div>
 
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/app.js"></script>
+    <script src="assets/js/piutang.js"></script>
 </body>
 </html>
