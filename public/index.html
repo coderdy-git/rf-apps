@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RF Apps</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#8b5cf6',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Landing / Login Screen -->
+    <div id="landingScreen" class="min-h-screen flex flex-col hidden">
+        <div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-3">RF Apps</h1>
+            <p class="text-gray-500 mb-12 max-w-xs">
+                Catat kehadiran harian kamu dengan mudah dan cepat.
+            </p>
+
+            <!-- Login Button -->
+            <button onclick="signInWithGoogle()" class="w-full max-w-xs min-h-[52px] bg-white border border-gray-300 hover:bg-gray-50 active:bg-gray-100 text-gray-700 rounded-2xl font-semibold shadow-md transition-colors flex items-center justify-center gap-3 px-6">
+                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Login dengan Google
+            </button>
+
+            <p class="text-gray-400 text-xs mt-6 max-w-xs">
+                Gunakan akun Google yang terdaftar untuk melanjutkan
+            </p>
+        </div>
+    </div>
+
+    <!-- Main Menu Screen -->
+    <div id="menuScreen" class="min-h-screen flex flex-col p-6 hidden">
+        <!-- Header with Settings Icon -->
+        <div class="flex justify-end items-center gap-2 mb-4">
+            <button onclick="showScreen('settingsScreen')" class="min-w-[44px] min-h-[44px] -mr-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" aria-label="Pengaturan">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="flex-1 flex flex-col items-center justify-center">
+            <!-- Absensi Menu -->
+            <button onclick="showScreen('attendanceScreen')" class="bg-white rounded-2xl shadow-md p-8 w-40 flex flex-col items-center justify-center space-y-4 active:scale-95 transition-transform">
+                <div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <span class="text-lg font-semibold text-gray-700">Absensi</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Attendance Screen -->
+    <div id="attendanceScreen" class="min-h-screen flex flex-col hidden">
+        <!-- Header -->
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center">
+            <button onclick="showScreen('menuScreen')" class="-ml-2 min-h-[44px] pl-2 pr-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1">
+                <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="text-xl font-semibold text-gray-800">Absensi</span>
+            </button>
+            <div class="flex-1"></div>
+            <button onclick="showScreen('historyScreen')" class="-mr-1 min-h-[44px] min-w-[44px] rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" title="Riwayat" aria-label="Riwayat">
+                <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 p-6">
+            <!-- Current Time -->
+            <div class="text-center mb-8">
+                <p class="text-gray-500 mb-1">Waktu Sekarang</p>
+                <p id="currentTime" class="text-4xl font-bold text-gray-800">--:--:--</p>
+                <p id="currentDate" class="text-gray-500 mt-1">--</p>
+            </div>
+
+            <!-- Check In/Out Button (satu tombol, berubah sesuai status) -->
+            <button id="checkBtn" onclick="handleCheck()" class="w-full bg-green-500 hover:bg-green-600 text-white rounded-2xl py-10 text-2xl font-bold active:scale-95 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mb-4">
+                Check In
+            </button>
+
+            <!-- Tidak Hadir Button -->
+            <button id="absentBtn" onclick="toggleAbsentForm()" class="w-full min-h-[52px] bg-amber-500 hover:bg-amber-600 text-white rounded-2xl mb-6 font-semibold active:scale-95 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                Tidak Hadir (Sakit / Cuti / Izin)
+            </button>
+
+            <!-- Status Form (Sakit/Cuti/Izin) - hidden by default -->
+            <div id="absentForm" class="bg-white rounded-2xl shadow-md p-6 hidden">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">Tidak Hadir Hari Ini</h3>
+                    <button onclick="toggleAbsentForm()" class="-mr-2 min-w-[44px] min-h-[44px] rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" aria-label="Tutup form">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-600 mb-2 text-sm font-medium">Status</label>
+                    <select id="statusType" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">Pilih Status</option>
+                        <option value="Sakit">Sakit</option>
+                        <option value="Cuti">Cuti</option>
+                        <option value="Izin">Izin</option>
+                        <option value="Kerja Dari Rumah">Kerja Dari Rumah</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-600 mb-2 text-sm font-medium">Keterangan</label>
+                    <textarea id="notes" rows="3" class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Tambahkan keterangan (opsional)"></textarea>
+                </div>
+
+                <button id="submitAbsentBtn" onclick="submitStatus()" class="w-full min-h-[52px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all disabled:opacity-50">
+                    Simpan Status
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Screen -->
+    <div id="historyScreen" class="min-h-screen flex flex-col hidden">
+        <!-- Header -->
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center">
+            <button onclick="showScreen('attendanceScreen')" class="-ml-2 min-h-[44px] pl-2 pr-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1">
+                <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="text-xl font-semibold text-gray-800">Riwayat</span>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 p-6">
+            <div id="historyList" class="space-y-3">
+                <!-- History items will be loaded here -->
+                <p class="text-center text-gray-500">Memuat data...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settingsScreen" class="min-h-screen flex flex-col hidden">
+        <!-- Header -->
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center">
+            <button onclick="showScreen('menuScreen')" class="-ml-2 min-h-[44px] pl-2 pr-4 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1">
+                <svg class="w-7 h-7 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="text-xl font-semibold text-gray-800">Pengaturan</span>
+            </button>
+        </div>
+
+        <!-- Content -->
+        <div class="flex-1 p-6">
+            <!-- Connection Status -->
+            <div class="bg-white rounded-2xl shadow-md p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Status Koneksi</h3>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Database</span>
+                        <div class="flex items-center space-x-2">
+                            <div id="dbStatusDot" class="w-3 h-3 rounded-full bg-yellow-400"></div>
+                            <span id="dbStatusText" class="text-sm text-gray-500">Mengecek...</span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Server Time</span>
+                        <span id="serverTime" class="text-sm text-gray-500">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Info -->
+            <div id="userInfo" class="bg-white rounded-2xl shadow-md p-6 mb-6 hidden">
+                <h3 class="text-lg font-semibold text-gray-700 mb-4">Informasi User</h3>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-sm text-gray-500">Akun</label>
+                        <p id="userId" class="text-gray-800 text-sm break-all">-</p>
+                    </div>
+                </div>
+
+                <button onclick="signOut()" class="w-full min-h-[52px] mt-4 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold active:scale-95 transition-all">
+                    Logout
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-6 right-6 bg-gray-800 text-white px-6 py-4 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300">
+        <p id="toastMessage">Message</p>
+    </div>
+
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/auth.js"></script>
+    <script src="assets/js/app.js"></script>
+</body>
+</html>
