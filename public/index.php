@@ -26,13 +26,8 @@ if ($baseDir === null) {
     exit;
 }
 
-// Load Composer autoloader
+// Load Composer autoloader — class App\* di-resolve otomatis lewat PSR-4
 require_once $baseDir . '/vendor/autoload.php';
-
-// Load classes manually
-require_once $baseDir . '/src/config/database.php';
-require_once $baseDir . '/src/models/AttendanceModel.php';
-require_once $baseDir . '/src/controllers/AttendanceController.php';
 
 // Load environment variables
 use Dotenv\Dotenv;
