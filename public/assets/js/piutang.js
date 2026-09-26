@@ -7,7 +7,6 @@ let currentContact = null;
 let currentReceivables = [];
 let currentDeposits = [];
 let currentPayments = [];
-let searchTimer = null;
 
 // ---------- Util ----------
 
@@ -110,20 +109,13 @@ document.addEventListener('keydown', (e) => {
 
 // ---------- Daftar Kontak ----------
 
-function debouncedLoadContacts() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(loadContacts, 300);
-}
-
 async function loadContacts() {
     const list = document.getElementById('contactList');
-    const search = document.getElementById('contactSearch')?.value.trim() ?? '';
 
     list.innerHTML = loadingBlock('Memuat kontak...');
 
     try {
-        const qs = search ? '?search=' + encodeURIComponent(search) : '';
-        const response = await apiFetch('/contacts' + qs, { method: 'GET' });
+        const response = await apiFetch('/contacts', { method: 'GET' });
         const result = await response.json();
 
         if (!result.success) {
@@ -132,9 +124,7 @@ async function loadContacts() {
         }
 
         if (!result.data.length) {
-            list.innerHTML = emptyBlock(
-                search ? 'Kontak tidak ditemukan' : 'Belum ada kontak'
-            );
+            list.innerHTML = emptyBlock('Belum ada kontak');
             return;
         }
 
