@@ -1,0 +1,34 @@
+# Routing: teruskan semua request yang bukan file/direktori asli ke index.php
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Kalau HTTPS belum aktif, hapus tanda # di dua baris bawah setelah SSL terpasang
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Authorization header perlu diteruskan ke PHP — dipakai untuk token Supabase.
+# Tanpa ini, login berhasil tapi semua request API balas "User not authenticated".
+<IfModule mod_rewrite.c>
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# Jangan tampilkan isi direktori
+Options -Indexes
+
+# Blokir akses langsung ke file sensitif
+<FilesMatch "^\.env|composer\.(json|lock)$">
+    Require all denied
+</FilesMatch>
+
+# Header keamanan dasar
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
