@@ -24,6 +24,47 @@ function tanggalSingkat(dateStr) {
     return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+// Ambil angka murni dari input yang mungkin berisi titik pemisah
+function angkaDari(teks) {
+    const bersih = String(teks ?? '').replace(/[^\d]/g, '');
+    return bersih === '' ? 0 : Number(bersih);
+}
+
+// Ubah angka jadi teks berpemisah ribuan: 1500000 -> "1.500.000"
+function formatRibuan(angka) {
+    const n = Number(angka) || 0;
+    return n === 0 ? '' : n.toLocaleString('id-ID');
+}
+
+/**
+ * Pasang pemisah ribuan otomatis pada sebuah input.
+ *
+ * Nilai diformat ulang setiap kali diketik, lalu kursor ditaruh kembali
+ * di posisi yang benar. Tanpa menghitung ulang posisi kursor, mengetik
+ * di tengah angka akan melompat ke akhir — karena panjang teks berubah
+ * saat titik ditambahkan.
+ */
+function pasangPemisahRibuan(input) {
+    if (!input) return;
+
+    input.addEventListener('input', () => {
+        const posisiLama = input.selectionStart;
+        const digitSebelum = input.value.slice(0, posisiLama).replace(/[^\d]/g, '').length;
+
+        input.value = formatRibuan(angkaDari(input.value));
+
+        // Hitung ulang posisi kursor: maju sampai melewati sejumlah
+        // digit yang sama seperti sebelum diformat.
+        let posisiBaru = 0;
+        let digitTerhitung = 0;
+        while (posisiBaru < input.value.length && digitTerhitung < digitSebelum) {
+            if (/\d/.test(input.value[posisiBaru])) digitTerhitung++;
+            posisiBaru++;
+        }
+        input.setSelectionRange(posisiBaru, posisiBaru);
+    });
+}
+
 // ---------- Modal ----------
 
 function openModal(title, bodyHtml) {
@@ -456,11 +497,6 @@ function openContactForm(contact = null) {
                 <input id="f-phone" type="tel" value="${escapeHtml(contact?.phone ?? '')}"
                        class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
-            <div>
-                <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
-                <textarea id="f-notes" rows="1"
-                          class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">${escapeHtml(contact?.notes ?? '')}</textarea>
-            </div>
             <button id="f-submit" class="w-full min-h-[50px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
                 ${isEdit ? 'Simpan Perubahan' : 'Tambah Kontak'}
             </button>
@@ -476,7 +512,6 @@ async function saveContact(btn, id) {
     const payload = {
         name: document.getElementById('f-name').value.trim(),
         phone: document.getElementById('f-phone').value.trim(),
-        notes: document.getElementById('f-notes').value.trim(),
     };
 
     if (!payload.name) {
@@ -533,8 +568,8 @@ function openReceivableForm(row = null) {
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Nilai <span class="text-red-500">*</span></label>
-                <input id="r-amount" type="text" inputmode="numeric" value="${row ? Number(row.amount) : ''}"
-                       placeholder="100000"
+                <input id="r-amount" type="text" inputmode="numeric" value="${row ? formatRibuan(row.amount) : ''}"
+                       placeholder="100.000"
                        class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
@@ -542,16 +577,13 @@ function openReceivableForm(row = null) {
                 <input id="r-date" type="date" value="${row?.date ?? new Date().toISOString().slice(0, 10)}"
                        class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
-            <div>
-                <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
-                <textarea id="r-notes" rows="1"
-                          class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">${escapeHtml(row?.notes ?? '')}</textarea>
-            </div>
             <button id="r-submit" class="w-full min-h-[50px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
                 ${isEdit ? 'Simpan Perubahan' : 'Tambah Piutang'}
             </button>
         </div>
     `);
+
+    pasangPemisahRibuan(document.getElementById('r-amount'));
 
     document.getElementById('r-submit').addEventListener('click', (e) => {
         saveReceivable(e.currentTarget, row?.id ?? null);
@@ -562,16 +594,15 @@ async function saveReceivable(btn, id) {
     const payload = {
         contact_id: currentContact?.id ?? '',
         description: document.getElementById('r-desc').value.trim(),
-        amount: document.getElementById('r-amount').value.trim(),
+        amount: angkaDari(document.getElementById('r-amount').value),
         date: document.getElementById('r-date').value,
-        notes: document.getElementById('r-notes').value.trim(),
     };
 
     if (!payload.description) {
         showToast('Keterangan wajib diisi', 'error');
         return;
     }
-    if (!payload.amount || Number(payload.amount.replace(/[^\d]/g, '')) <= 0) {
+    if (payload.amount <= 0) {
         showToast('Nilai piutang harus lebih dari 0', 'error');
         return;
     }
@@ -661,7 +692,7 @@ function openDepositForm() {
         <div class="space-y-3">
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Nilai Setoran <span class="text-red-500">*</span></label>
-                <input id="d-amount" type="text" inputmode="numeric" placeholder="100000"
+                <input id="d-amount" type="text" inputmode="numeric" placeholder="100.000"
                        class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
@@ -680,6 +711,8 @@ function openDepositForm() {
         </div>
     `);
 
+    pasangPemisahRibuan(document.getElementById('d-amount'));
+
     document.getElementById('d-submit').addEventListener('click', (e) => {
         saveDeposit(e.currentTarget);
     });
@@ -687,12 +720,12 @@ function openDepositForm() {
 
 async function saveDeposit(btn) {
     const payload = {
-        amount: document.getElementById('d-amount').value.trim(),
+        amount: angkaDari(document.getElementById('d-amount').value),
         date: document.getElementById('d-date').value,
         notes: document.getElementById('d-notes').value.trim(),
     };
 
-    if (!payload.amount || Number(payload.amount.replace(/[^\d]/g, '')) <= 0) {
+    if (payload.amount <= 0) {
         showToast('Nilai setoran harus lebih dari 0', 'error');
         return;
     }
@@ -872,6 +905,10 @@ function openPaymentForm(preselectId = null) {
     });
 
     // Hitung ulang saat tunai diisi/diubah
+    // Pemisah ribuan dipasang lebih dulu, baru hint diperbarui.
+    // Urutannya penting: pendengar 'input' dijalankan sesuai urutan
+    // pendaftaran, jadi hint akan membaca nilai yang sudah diformat.
+    pasangPemisahRibuan(document.getElementById('p-cash'));
     document.getElementById('p-cash').addEventListener('input', updateCashHint);
 
     document.getElementById('p-submit').addEventListener('click', (e) => {
@@ -926,7 +963,7 @@ function updateCashHint() {
     const hint = document.getElementById('p-hint');
     const required = window.__cashRequired || 0;
     const input = document.getElementById('p-cash');
-    const cash = Number(String(input.value).replace(/[^\d]/g, '')) || 0;
+    const cash = angkaDari(input.value);
 
     if (required === 0 && cash === 0) {
         hint.textContent = '';
@@ -952,7 +989,7 @@ async function savePayment(btn) {
 
     const payload = {
         receivable_ids: ids,
-        cash_amount: document.getElementById('p-cash').value.trim() || '0',
+        cash_amount: angkaDari(document.getElementById('p-cash').value),
         date: document.getElementById('p-date').value,
         notes: document.getElementById('p-notes').value.trim(),
     };
