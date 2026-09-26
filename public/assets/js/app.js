@@ -114,6 +114,10 @@ function showScreen(screenId) {
     if (screenId === 'settingsScreen') {
         checkConnection();
     }
+
+    if (screenId === 'contactsScreen' && typeof loadContacts === 'function') {
+        loadContacts();
+    }
 }
 
 /**
