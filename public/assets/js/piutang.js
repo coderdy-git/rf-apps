@@ -29,15 +29,34 @@ function tanggalSingkat(dateStr) {
 function openModal(title, bodyHtml) {
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHtml;
+
     const modal = document.getElementById('modal');
+    const panel = document.getElementById('modalPanel');
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+
+    // Panel mulai dari posisi tergeser ke bawah, lalu digeser naik.
+    // requestAnimationFrame menunggu browser sempat menggambar posisi
+    // awal dulu — tanpa ini, transisinya tidak akan terlihat karena
+    // kedua kelas berubah di frame yang sama.
+    requestAnimationFrame(() => {
+        panel.classList.remove('translate-y-full');
+    });
 }
 
 function closeModal() {
     const modal = document.getElementById('modal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+    const panel = document.getElementById('modalPanel');
+
+    panel.classList.add('translate-y-full');
+
+    // Tunggu animasi selesai sebelum disembunyikan, supaya panelnya
+    // terlihat turun ke bawah, bukan hilang mendadak.
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }, 300);
 }
 
 document.addEventListener('click', (e) => {
@@ -426,23 +445,23 @@ function openContactForm(contact = null) {
     const isEdit = contact !== null;
 
     openModal(isEdit ? 'Ubah Kontak' : 'Tambah Kontak', `
-        <div class="space-y-4">
+        <div class="space-y-3">
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Nama <span class="text-red-500">*</span></label>
                 <input id="f-name" type="text" value="${escapeHtml(contact?.name ?? '')}"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">No. HP</label>
                 <input id="f-phone" type="tel" value="${escapeHtml(contact?.phone ?? '')}"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
-                <textarea id="f-notes" rows="2"
+                <textarea id="f-notes" rows="1"
                           class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">${escapeHtml(contact?.notes ?? '')}</textarea>
             </div>
-            <button id="f-submit" class="w-full min-h-[52px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
+            <button id="f-submit" class="w-full min-h-[50px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
                 ${isEdit ? 'Simpan Perubahan' : 'Tambah Kontak'}
             </button>
         </div>
@@ -505,30 +524,30 @@ function openReceivableForm(row = null) {
     const isEdit = row !== null;
 
     openModal(isEdit ? 'Ubah Piutang' : 'Tambah Piutang', `
-        <div class="space-y-4">
+        <div class="space-y-3">
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Keterangan <span class="text-red-500">*</span></label>
                 <input id="r-desc" type="text" value="${escapeHtml(row?.description ?? '')}"
                        placeholder="Contoh: Pinjam uang, Beli barang"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Nilai <span class="text-red-500">*</span></label>
                 <input id="r-amount" type="text" inputmode="numeric" value="${row ? Number(row.amount) : ''}"
                        placeholder="100000"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Tanggal</label>
                 <input id="r-date" type="date" value="${row?.date ?? new Date().toISOString().slice(0, 10)}"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
-                <textarea id="r-notes" rows="2"
+                <textarea id="r-notes" rows="1"
                           class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">${escapeHtml(row?.notes ?? '')}</textarea>
             </div>
-            <button id="r-submit" class="w-full min-h-[52px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
+            <button id="r-submit" class="w-full min-h-[50px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
                 ${isEdit ? 'Simpan Perubahan' : 'Tambah Piutang'}
             </button>
         </div>
@@ -639,23 +658,23 @@ async function voidReceivable(id) {
 
 function openDepositForm() {
     openModal('Setor Deposit', `
-        <div class="space-y-4">
+        <div class="space-y-3">
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Nilai Setoran <span class="text-red-500">*</span></label>
                 <input id="d-amount" type="text" inputmode="numeric" placeholder="100000"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Tanggal</label>
                 <input id="d-date" type="date" value="${new Date().toISOString().slice(0, 10)}"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
-                <textarea id="d-notes" rows="2" placeholder="Opsional"
+                <textarea id="d-notes" rows="1" placeholder="Opsional"
                           class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
             </div>
-            <button id="d-submit" class="w-full min-h-[52px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
+            <button id="d-submit" class="w-full min-h-[50px] bg-primary hover:bg-secondary text-white rounded-xl font-semibold active:scale-95 transition-all">
                 Simpan Setoran
             </button>
         </div>
@@ -774,13 +793,13 @@ function openPaymentForm(preselectId = null) {
     const deposit = Number(currentContact.deposit_balance) || 0;
 
     openModal('Bayar Piutang', `
-        <div class="space-y-4">
+        <div class="space-y-3">
             <!-- Pilih piutang -->
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Pilih piutang yang dilunasi</label>
-                <div class="space-y-2 max-h-56 overflow-y-auto border border-gray-200 rounded-xl p-2">
+                <div class="space-y-1 max-h-48 overflow-y-auto border border-gray-200 rounded-xl p-1.5">
                     ${currentReceivables.map(r => `
-                        <label class="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer">
+                        <label class="flex items-start gap-3 p-2.5 rounded-lg hover:bg-gray-50 cursor-pointer">
                             <input type="checkbox" data-pay-id="${r.id}"
                                    ${selectedReceivables.has(r.id) ? 'checked' : ''}
                                    class="mt-1 w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary">
@@ -795,7 +814,7 @@ function openPaymentForm(preselectId = null) {
             </div>
 
             <!-- Ringkasan perhitungan -->
-            <div class="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+            <div class="bg-gray-50 rounded-xl p-3 space-y-1.5 text-sm">
                 <div class="flex justify-between">
                     <span class="text-gray-600">Total dipilih</span>
                     <span id="sum-total" class="font-semibold text-gray-800">Rp 0</span>
@@ -818,23 +837,23 @@ function openPaymentForm(preselectId = null) {
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Uang Tunai Diterima</label>
                 <input id="p-cash" type="text" inputmode="numeric" placeholder="0" value=""
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
                 <p id="p-hint" class="text-xs text-gray-500 mt-2"></p>
             </div>
 
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Tanggal</label>
                 <input id="p-date" type="date" value="${new Date().toISOString().slice(0, 10)}"
-                       class="w-full border border-gray-300 rounded-xl px-4 py-3 min-h-[48px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                       class="w-full border border-gray-300 rounded-xl px-4 py-2.5 min-h-[46px] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
             </div>
 
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Catatan</label>
-                <textarea id="p-notes" rows="2" placeholder="Opsional"
+                <textarea id="p-notes" rows="1" placeholder="Opsional"
                           class="w-full border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
             </div>
 
-            <button id="p-submit" class="w-full min-h-[52px] bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold active:scale-95 transition-all">
+            <button id="p-submit" class="w-full min-h-[50px] bg-green-500 hover:bg-green-600 text-white rounded-xl font-semibold active:scale-95 transition-all">
                 Simpan Pembayaran
             </button>
         </div>
