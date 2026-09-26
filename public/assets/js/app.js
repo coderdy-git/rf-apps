@@ -553,67 +553,39 @@ function escapeHtml(text) {
 
 // Check database connection
 async function checkConnection() {
-    const statusDot = document.getElementById('statusDot');
-    const statusText = document.getElementById('statusText');
     const dbStatusDot = document.getElementById('dbStatusDot');
     const dbStatusText = document.getElementById('dbStatusText');
     const serverTimeEl = document.getElementById('serverTime');
 
     try {
         const startTime = Date.now();
-        const response = await apiFetch("/health", {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        const response = await apiFetch("/health", { method: 'GET' });
 
-        const endTime = Date.now();
-        const latency = endTime - startTime;
+        const latency = Date.now() - startTime;
 
-        if (response.ok) {
-            const result = await response.json();
-
-            // Connection successful
-            if (statusDot) {
-                statusDot.classList.remove('bg-yellow-400', 'bg-red-500', 'animate-pulse');
-                statusDot.classList.add('bg-green-500');
-            }
-            if (statusText) {
-                statusText.textContent = `Terhubung (${latency}ms)`;
-                statusText.classList.remove('text-gray-500', 'text-red-500');
-                statusText.classList.add('text-green-600');
-            }
-            if (dbStatusDot) {
-                dbStatusDot.classList.remove('bg-yellow-400', 'bg-red-500');
-                dbStatusDot.classList.add('bg-green-500');
-            }
-            if (dbStatusText) {
-                dbStatusText.textContent = `Terhubung (${latency}ms)`;
-                dbStatusText.classList.remove('text-gray-500', 'text-red-500');
-                dbStatusText.classList.add('text-green-600');
-            }
-            if (serverTimeEl) {
-                serverTimeEl.textContent = result.timestamp || new Date().toLocaleString('id-ID');
-            }
-
-            return true;
-        } else {
+        if (!response.ok) {
             throw new Error('Connection failed');
         }
+
+        const result = await response.json();
+
+        if (dbStatusDot) {
+            dbStatusDot.classList.remove('bg-yellow-400', 'bg-red-500');
+            dbStatusDot.classList.add('bg-green-500');
+        }
+        if (dbStatusText) {
+            dbStatusText.textContent = `Terhubung (${latency}ms)`;
+            dbStatusText.classList.remove('text-gray-500', 'text-red-500');
+            dbStatusText.classList.add('text-green-600');
+        }
+        if (serverTimeEl) {
+            serverTimeEl.textContent = result.timestamp || new Date().toLocaleString('id-ID');
+        }
+
+        return true;
     } catch (error) {
         console.error('Connection error:', error);
 
-        // Connection failed
-        if (statusDot) {
-            statusDot.classList.remove('bg-yellow-400', 'bg-green-500', 'animate-pulse');
-            statusDot.classList.add('bg-red-500');
-        }
-        if (statusText) {
-            statusText.textContent = 'Tidak terhubung';
-            statusText.classList.remove('text-gray-500', 'text-green-600');
-            statusText.classList.add('text-red-500');
-        }
         if (dbStatusDot) {
             dbStatusDot.classList.remove('bg-yellow-400', 'bg-green-500');
             dbStatusDot.classList.add('bg-red-500');

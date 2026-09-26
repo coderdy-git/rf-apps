@@ -283,6 +283,11 @@
                 </span>
             </button>
             <div class="flex-1 min-w-[8px]"></div>
+            <button onclick="openHistoryScreen()" class="min-w-[44px] min-h-[44px] rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" aria-label="Riwayat transaksi">
+                <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </button>
             <button onclick="openContactForm(currentContact)" class="min-w-[44px] min-h-[44px] -mr-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center justify-center" aria-label="Ubah kontak">
                 <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -291,6 +296,23 @@
         </div>
 
         <div id="contactDetailBody" class="flex-1 p-6"></div>
+    </div>
+
+    <!-- Riwayat Transaksi Kontak -->
+    <div id="contactHistoryScreen" class="min-h-screen flex flex-col hidden">
+        <div class="bg-white shadow-sm px-4 py-4 flex items-center">
+            <button onclick="showScreen('contactDetailScreen')" class="-ml-2 min-h-[44px] pl-2 pr-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 transition-colors flex items-center gap-1 min-w-0">
+                <svg class="w-7 h-7 text-gray-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                <span class="min-w-0 text-left">
+                    <span class="block text-xl font-semibold text-gray-800">Riwayat</span>
+                    <span id="historyContactName" class="block text-sm text-gray-500 truncate"></span>
+                </span>
+            </button>
+        </div>
+
+        <div id="contactHistoryBody" class="flex-1 p-6"></div>
     </div>
 
     <!-- Toast Notification -->

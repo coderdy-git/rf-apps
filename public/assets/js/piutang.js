@@ -119,11 +119,23 @@ function renderContactRow(contact) {
 
 // ---------- Detail Kontak ----------
 
-async function openContact(id) {
-    showScreen('contactDetailScreen');
+/**
+ * Muat detail kontak.
+ *
+ * $returnTo dipakai kalau aksi dilakukan dari halaman riwayat —
+ * supaya setelah selesai user tetap di riwayat, bukan dilempar
+ * balik ke detail kontak.
+ */
+async function openContact(id, returnTo = 'contactDetailScreen') {
+    showScreen(returnTo);
 
-    const body = document.getElementById('contactDetailBody');
-    document.getElementById('contactDetailName').textContent = 'Memuat...';
+    const body = document.getElementById(returnTo === 'contactHistoryScreen'
+        ? 'contactHistoryBody'
+        : 'contactDetailBody');
+
+    if (returnTo === 'contactDetailScreen') {
+        document.getElementById('contactDetailName').textContent = 'Memuat...';
+    }
     body.innerHTML = loadingBlock('Memuat detail...');
 
     try {
@@ -151,11 +163,16 @@ async function openContact(id) {
         currentDeposits = depositResult.success ? (depositResult.data.history ?? []) : [];
         currentPayments = paymentResult.success ? (paymentResult.data ?? []) : [];
 
-        document.getElementById('contactDetailName').textContent = currentContact.name;
-        document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
+        if (returnTo === 'contactDetailScreen') {
+            document.getElementById('contactDetailName').textContent = currentContact.name;
+            document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
 
-        body.innerHTML = renderContactDetail(result.data);
-        bindDetailActions();
+            body.innerHTML = renderContactDetail(result.data);
+            bindDetailActions();
+        } else {
+            // Kembali ke halaman riwayat — render ulang isinya, bukan detail
+            openHistoryScreen();
+        }
     } catch (error) {
         console.error('openContact:', error);
         body.innerHTML = errorBlock('Gagal memuat detail kontak');
@@ -205,36 +222,64 @@ function renderContactDetail({ contact, receivables }) {
             </div>
         </div>
 
-        <div class="space-y-2 mb-6">
+        <div class="space-y-2">
             ${receivables.length
                 ? receivables.map(renderReceivableRow).join('')
                 : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Tidak ada piutang aktif</div>'}
         </div>
 
-        <!-- Riwayat pembayaran -->
-        ${currentPayments.length ? `
-            <div class="mt-6 mb-3">
-                <h3 class="font-semibold text-gray-700">Riwayat Pembayaran</h3>
-            </div>
-            <div class="space-y-2 mb-6">
-                ${currentPayments.map(renderPaymentRow).join('')}
-            </div>
-        ` : ''}
+        <!-- Deposit dan riwayat tidak ditampilkan di sini.
+             Deposit diakses lewat tombol di halaman Riwayat. -->
+    `;
+}
 
-        <!-- Riwayat deposit -->
-        <div class="flex items-center justify-between mt-6 mb-3">
-            <h3 class="font-semibold text-gray-700">Riwayat Deposit</h3>
+// ---------- Halaman Riwayat ----------
+
+function openHistoryScreen() {
+    showScreen('contactHistoryScreen');
+    document.getElementById('historyContactName').textContent = currentContact?.name ?? '';
+
+    const body = document.getElementById('contactHistoryBody');
+    const hasAny = currentPayments.length || currentDeposits.length;
+
+    if (!hasAny) {
+        body.innerHTML = emptyBlock('Belum ada transaksi');
+        return;
+    }
+
+    body.innerHTML = `
+        <!-- Deposit -->
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold text-gray-700">Deposit</h3>
             <button data-action="add-deposit" class="text-primary hover:text-secondary text-sm font-semibold min-h-[44px] px-2">
                 + Setor
             </button>
         </div>
-
-        <div class="space-y-2">
+        <div class="space-y-2 mb-8">
             ${currentDeposits.length
                 ? currentDeposits.map(renderDepositRow).join('')
                 : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Belum ada mutasi deposit</div>'}
         </div>
+
+        <!-- Pembayaran -->
+        <h3 class="font-semibold text-gray-700 mb-3">Pembayaran</h3>
+        <div class="space-y-2">
+            ${currentPayments.length
+                ? currentPayments.map(renderPaymentRow).join('')
+                : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Belum ada pembayaran</div>'}
+        </div>
     `;
+
+    body.querySelector('[data-action="add-deposit"]')
+        ?.addEventListener('click', openDepositForm);
+
+    body.querySelectorAll('[data-action="void-deposit"]').forEach(btn => {
+        btn.addEventListener('click', () => voidDeposit(btn.dataset.id));
+    });
+
+    body.querySelectorAll('[data-action="void-payment"]').forEach(btn => {
+        btn.addEventListener('click', () => voidPayment(btn.dataset.id));
+    });
 }
 
 function renderPaymentRow(p) {
@@ -354,17 +399,6 @@ function bindDetailActions() {
 
     body.querySelector('[data-action="pay-selected"]')
         ?.addEventListener('click', () => openPaymentForm());
-
-    body.querySelector('[data-action="add-deposit"]')
-        ?.addEventListener('click', openDepositForm);
-
-    body.querySelectorAll('[data-action="void-deposit"]').forEach(btn => {
-        btn.addEventListener('click', () => voidDeposit(btn.dataset.id));
-    });
-
-    body.querySelectorAll('[data-action="void-payment"]').forEach(btn => {
-        btn.addEventListener('click', () => voidPayment(btn.dataset.id));
-    });
 }
 
 function currentContactReceivable(id) {
@@ -527,7 +561,7 @@ async function saveReceivable(btn, id) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id);
+        await openContact(currentContact.id, 'contactHistoryScreen');
     } catch (error) {
         console.error('saveReceivable:', error);
         showToast('Gagal menyimpan piutang', 'error');
@@ -576,7 +610,7 @@ async function voidReceivable(id) {
 
             closeModal();
             showToast(result.message, 'success');
-            await openContact(currentContact.id);
+            await openContact(currentContact.id, 'contactHistoryScreen');
         } catch (error) {
             console.error('voidReceivable:', error);
             showToast('Gagal membatalkan piutang', 'error');
@@ -645,7 +679,7 @@ async function saveDeposit(btn) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id);
+        await openContact(currentContact.id, 'contactHistoryScreen');
     } catch (error) {
         console.error('saveDeposit:', error);
         showToast('Gagal menyimpan setoran', 'error');
@@ -695,7 +729,7 @@ async function voidDeposit(id) {
 
             closeModal();
             showToast(result.message, 'success');
-            await openContact(currentContact.id);
+            await openContact(currentContact.id, 'contactHistoryScreen');
         } catch (error) {
             console.error('voidDeposit:', error);
             showToast('Gagal membatalkan setoran', 'error');
@@ -905,7 +939,7 @@ async function savePayment(btn) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id);
+        await openContact(currentContact.id, 'contactHistoryScreen');
     } catch (error) {
         console.error('savePayment:', error);
         showToast('Gagal menyimpan pembayaran', 'error');
@@ -957,7 +991,7 @@ async function voidPayment(id) {
 
             closeModal();
             showToast(result.message, 'success');
-            await openContact(currentContact.id);
+            await openContact(currentContact.id, 'contactHistoryScreen');
         } catch (error) {
             console.error('voidPayment:', error);
             showToast('Gagal membatalkan transaksi', 'error');
