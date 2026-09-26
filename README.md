@@ -64,12 +64,19 @@ composer install
 
 ### 3. Setup Environment Variables
 
-Buat file `.env` di root project:
+Salin template lalu isi dengan nilai dari **Supabase Dashboard → Project Settings → API**:
+
+```bash
+cp .env.example .env
+```
 
 ```env
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 ```
+
+> `.env` sudah masuk `.gitignore` sehingga tidak akan ikut ter-commit.
+> Jangan pernah mengganti anon key dengan `service_role` key di file ini.
 
 ### 4. Setup Database di Supabase
 
