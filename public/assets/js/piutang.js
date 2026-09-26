@@ -139,6 +139,7 @@ async function openContact(id) {
 
         if (!result.success) {
             body.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
+            document.getElementById('contactDetailPhone').textContent = '';
             return;
         }
 
@@ -149,7 +150,9 @@ async function openContact(id) {
         currentReceivables = result.data.receivables ?? [];
         currentDeposits = depositResult.success ? (depositResult.data.history ?? []) : [];
         currentPayments = paymentResult.success ? (paymentResult.data ?? []) : [];
+
         document.getElementById('contactDetailName').textContent = currentContact.name;
+        document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
 
         body.innerHTML = renderContactDetail(result.data);
         bindDetailActions();
@@ -179,13 +182,6 @@ function renderContactDetail({ contact, receivables }) {
                 </span>
             </div>
         </div>
-
-        ${contact.phone ? `
-            <div class="bg-white rounded-xl shadow-sm p-4 mb-3">
-                <span class="text-xs text-gray-500 block">No. HP</span>
-                <span class="text-gray-800">${escapeHtml(contact.phone)}</span>
-            </div>
-        ` : ''}
 
         ${contact.notes ? `
             <div class="bg-white rounded-xl shadow-sm p-4 mb-3">
