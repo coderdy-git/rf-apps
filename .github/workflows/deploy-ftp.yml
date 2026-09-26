@@ -41,15 +41,20 @@ jobs:
           fi
           echo "OK: konfigurasi terisi."
 
+      # cPanel mengunci document root ke folder subdomain, jadi isi public/
+      # ikut di-upload dan strukturnya jadi satu folder. index.php sudah
+      # menangani dua struktur sekaligus, jadi tidak perlu diubah di sini.
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASSWORD }}
-          # Path di server tempat aplikasi ditaruh, diakhiri garis miring.
-          # Contoh: /home/USERNAME/rfapps/
+          # Path folder subdomain di server, diakhiri garis miring.
+          # Contoh: /home/USERNAME/rfapps.domainkamu.com/
           server-dir: ${{ vars.FTP_TARGET_DIR }}
+          # .htaccess SENGAJA tidak di-exclude — file itu yang melindungi .env
+          # dan folder internal di struktur satu-folder.
           exclude: |
             **/.git*
             **/.git*/**

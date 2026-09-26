@@ -1,16 +1,42 @@
 <?php
 
+/**
+ * Cari folder induk yang berisi src/ dan vendor/.
+ *
+ * Di lokal, index.php ada di public/ sehingga induknya adalah satu level di atas.
+ * Di cPanel, document root terkunci ke folder subdomain, jadi seluruh isi project
+ * (termasuk public/) di-upload ke satu folder yang sama — induknya folder itu sendiri.
+ *
+ * Pencarian ini membuat file yang sama jalan di dua struktur tanpa diubah.
+ */
+$baseDir = null;
+foreach ([__DIR__ . '/..', __DIR__] as $candidate) {
+    if (is_dir($candidate . '/src') && is_dir($candidate . '/vendor')) {
+        $baseDir = $candidate;
+        break;
+    }
+}
+
+if ($baseDir === null) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'error' => 'Instalasi tidak lengkap: folder src/ dan vendor/ tidak ditemukan.'
+    ]);
+    exit;
+}
+
 // Load Composer autoloader
-require_once __DIR__ . '/../vendor/autoload.php';
+require_once $baseDir . '/vendor/autoload.php';
 
 // Load classes manually
-require_once __DIR__ . '/../src/config/database.php';
-require_once __DIR__ . '/../src/models/AttendanceModel.php';
-require_once __DIR__ . '/../src/controllers/AttendanceController.php';
+require_once $baseDir . '/src/config/database.php';
+require_once $baseDir . '/src/models/AttendanceModel.php';
+require_once $baseDir . '/src/controllers/AttendanceController.php';
 
 // Load environment variables
 use Dotenv\Dotenv;
-$dotenv = Dotenv::createImmutable(__DIR__ . '/..');
+$dotenv = Dotenv::createImmutable($baseDir);
 $dotenv->load();
 
 // Start session
