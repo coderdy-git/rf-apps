@@ -67,6 +67,13 @@ function pasangPemisahRibuan(input) {
 // ---------- Modal ----------
 
 function openModal(title, bodyHtml) {
+    // Batalkan penutupan yang mungkin masih berjalan — kalau tidak,
+    // modal ini akan tersembunyi 300ms setelah dibuka.
+    if (timerTutupModal) {
+        clearTimeout(timerTutupModal);
+        timerTutupModal = null;
+    }
+
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHtml;
 
@@ -85,18 +92,31 @@ function openModal(title, bodyHtml) {
     });
 }
 
+// Harus sama dengan durasi transition di #modalPanel (index.html).
+// Kalau diubah di sana, ubah juga di sini.
+const DURASI_TUTUP_MODAL = 300;
+
+// Timer penutupan modal yang sedang berjalan.
+// Disimpan supaya bisa dibatalkan kalau modal dibuka lagi sebelum
+// animasi tutupnya selesai — tanpa ini, timer lama akan menyembunyikan
+// modal yang baru dibuka.
+let timerTutupModal = null;
+
 function closeModal() {
     const modal = document.getElementById('modal');
     const panel = document.getElementById('modalPanel');
 
     panel.classList.add('translate-y-full');
 
+    if (timerTutupModal) clearTimeout(timerTutupModal);
+
     // Tunggu animasi selesai sebelum disembunyikan, supaya panelnya
     // terlihat turun ke bawah, bukan hilang mendadak.
-    setTimeout(() => {
+    timerTutupModal = setTimeout(() => {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
-    }, 300);
+        timerTutupModal = null;
+    }, DURASI_TUTUP_MODAL);
 }
 
 document.addEventListener('click', (e) => {
@@ -168,6 +188,28 @@ function renderContactRow(contact) {
 }
 
 // ---------- Detail Kontak ----------
+
+/**
+ * Segarkan tampilan setelah transaksi berhasil.
+ *
+ * Kalau transaksinya terkirim langsung, server sudah punya data
+ * terbaru dan layarnya dimuat ulang dari sana.
+ *
+ * Kalau transaksinya masuk antrean offline, server BELUM tahu
+ * perubahannya — memuat ulang justru akan menampilkan data lama,
+ * misalnya piutang yang baru dibatalkan muncul lagi. Jadi layarnya
+ * dibiarkan apa adanya, hanya penanda antrean yang diperbarui.
+ */
+async function segarkanSetelahTransaksi(hasil, returnTo = 'contactDetailScreen') {
+    if (hasil && hasil.offline) {
+        if (typeof perbaruiPenandaAntrean === 'function') {
+            perbaruiPenandaAntrean();
+        }
+        return;
+    }
+
+    await openContact(currentContact.id, returnTo);
+}
 
 /**
  * Muat detail kontak dan segarkan kedua halaman sekaligus.
@@ -481,7 +523,11 @@ function openReceivableDetail(id) {
  */
 function jedaBukaModal(aksi) {
     closeModal();
-    setTimeout(aksi, 320);
+    // DURASI_TUTUP_MODAL + 20ms. Timer dan animasi CSS berjalan
+    // terpisah dan tidak dijamin selesai bersamaan, jadi diberi
+    // kelonggaran kecil supaya modal baru tidak naik saat modal
+    // lama masih turun.
+    setTimeout(aksi, DURASI_TUTUP_MODAL + 20);
 }
 
 function currentContactReceivable(id) {
@@ -637,7 +683,7 @@ async function saveReceivable(btn, id) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id);
+        await segarkanSetelahTransaksi(result);
     } catch (error) {
         console.error('saveReceivable:', error);
         showToast('Gagal menyimpan piutang', 'error');
@@ -695,7 +741,7 @@ async function voidReceivable(id) {
 
             closeModal();
             showToast(result.message, 'success');
-            await openContact(currentContact.id);
+            await segarkanSetelahTransaksi(result);
         } catch (error) {
             console.error('voidReceivable:', error);
             showToast('Gagal membatalkan piutang', 'error');
@@ -756,7 +802,16 @@ async function saveDeposit(btn) {
         const result = await kirimAtauAntre(
             '/contacts/' + currentContact.id + '/deposits',
             'POST',
-            payload
+            payload,
+            {
+                // Dipakai form bayar untuk memberi tahu bahwa saldo deposit
+                // yang ditampilkan belum termasuk setoran yang belum terkirim.
+                status: {
+                    contactId: currentContact.id,
+                    jenis: 'deposit-masuk',
+                    nominal: payload.amount,
+                },
+            }
         );
 
         if (!result.success) {
@@ -766,7 +821,7 @@ async function saveDeposit(btn) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id, 'contactHistoryScreen');
+        await segarkanSetelahTransaksi(result, 'contactHistoryScreen');
     } catch (error) {
         console.error('saveDeposit:', error);
         showToast('Gagal menyimpan setoran', 'error');
@@ -815,7 +870,7 @@ async function voidDeposit(id) {
 
             closeModal();
             showToast(result.message, 'success');
-            await openContact(currentContact.id, 'contactHistoryScreen');
+            await segarkanSetelahTransaksi(result, 'contactHistoryScreen');
         } catch (error) {
             console.error('voidDeposit:', error);
             showToast('Gagal membatalkan setoran', 'error');
@@ -885,6 +940,14 @@ function openPaymentForm(preselectId = null) {
                 </div>
             </div>
 
+            <!-- Peringatan kalau ada deposit yang belum terkirim -->
+            <div id="p-antrean" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <p class="text-xs text-amber-800">
+                    Ada <span data-nominal></span> setoran yang belum terkirim ke server.
+                    Saldo di atas belum termasuk itu, jadi belum bisa dipakai.
+                </p>
+            </div>
+
             <!-- Nominal tunai -->
             <div>
                 <label class="block text-gray-600 mb-2 text-sm font-medium">Uang Tunai Diterima</label>
@@ -933,6 +996,20 @@ function openPaymentForm(preselectId = null) {
     document.getElementById('p-submit').addEventListener('click', (e) => {
         savePayment(e.currentTarget);
     });
+
+    // Beri tahu kalau ada setoran yang belum terkirim — saldo yang
+    // ditampilkan belum termasuk itu, dan itu bisa membingungkan.
+    if (typeof depositMengantre === 'function') {
+        depositMengantre(currentContact.id).then((nominal) => {
+            if (nominal <= 0) return;
+
+            const kotak = document.getElementById('p-antrean');
+            if (!kotak) return;
+
+            kotak.querySelector('[data-nominal]').textContent = rupiah(nominal);
+            kotak.classList.remove('hidden');
+        });
+    }
 
     refreshPreview();
 }
@@ -1039,14 +1116,7 @@ async function savePayment(btn) {
 
         closeModal();
         showToast(result.message, 'success');
-
-        // Saat offline, angkanya belum berubah di server — jadi layarnya
-        // tidak dimuat ulang, cukup ditandai bahwa ada antrean.
-        if (!result.offline) {
-            await openContact(currentContact.id);
-        } else if (typeof perbaruiPenandaAntrean === 'function') {
-            perbaruiPenandaAntrean();
-        }
+        await segarkanSetelahTransaksi(result);
     } catch (error) {
         console.error('savePayment:', error);
         showToast('Gagal menyimpan pembayaran', 'error');
@@ -1097,7 +1167,7 @@ async function voidPayment(id) {
 
             closeModal();
             showToast(result.message, 'success');
-            await openContact(currentContact.id, 'contactHistoryScreen');
+            await segarkanSetelahTransaksi(result, 'contactHistoryScreen');
         } catch (error) {
             console.error('voidPayment:', error);
             showToast('Gagal membatalkan transaksi', 'error');

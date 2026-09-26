@@ -4,12 +4,11 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker
             .register('sw.js', { scope: './' })
-            .then((reg) => {
-                console.log('Service worker terdaftar:', reg.scope);
-            })
             .catch((error) => {
                 // Kegagalan di sini tidak menghalangi aplikasi dipakai —
-                // hanya berarti mode offline tidak aktif.
+                // hanya berarti mode offline tidak aktif. Tetap dicatat
+                // karena tanpa ini sulit mendiagnosa kenapa offline
+                // tidak jalan di perangkat tertentu.
                 console.warn('Service worker gagal terdaftar:', error);
             });
     });

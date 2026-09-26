@@ -314,6 +314,35 @@ function muatUlangLayarAktif() {
     }
 }
 
+// ---------- Antrean per kontak ----------
+
+/**
+ * Total setoran deposit yang masih mengantre untuk satu kontak.
+ *
+ * Dipakai form bayar untuk memberi tahu bahwa saldo yang ditampilkan
+ * belum termasuk setoran yang belum terkirim — kalau tidak diberi
+ * tahu, user akan bingung kenapa depositnya tidak terpakai.
+ */
+async function depositMengantre(contactId) {
+    if (!contactId) return 0;
+
+    try {
+        const antrean = await ambilAntrean();
+        let total = 0;
+
+        for (const item of antrean) {
+            if (item.bentrok) continue;
+            const s = item.konteks && item.konteks.status;
+            if (!s || s.contactId !== contactId) continue;
+            if (s.jenis === 'deposit-masuk') total += Number(s.nominal) || 0;
+        }
+
+        return total;
+    } catch {
+        return 0;
+    }
+}
+
 // ---------- Layar tinjauan antrean ----------
 
 async function renderAntreanScreen() {
