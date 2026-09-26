@@ -180,4 +180,4 @@ Supabase Dashboard → **Authentication → URL Configuration**:
 
 ## License
 
-MIT License
+[MIT](LICENSE) © 2026 coderdy-git
