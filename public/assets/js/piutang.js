@@ -530,14 +530,11 @@ async function saveContact(btn, id) {
     setButtonLoading(btn, true, 'Menyimpan...');
 
     try {
-        const response = await apiFetch(
+        const result = await kirimAtauAntre(
             id ? '/contacts/' + id : '/contacts',
-            {
-                method: id ? 'PATCH' : 'POST',
-                body: JSON.stringify(payload),
-            }
+            id ? 'PATCH' : 'POST',
+            payload
         );
-        const result = await response.json();
 
         if (!result.success) {
             showToast(result.message || 'Gagal menyimpan', 'error');
@@ -618,14 +615,20 @@ async function saveReceivable(btn, id) {
     setButtonLoading(btn, true, 'Menyimpan...');
 
     try {
-        const response = await apiFetch(
+        const result = await kirimAtauAntre(
             id ? '/receivables/' + id : '/receivables',
+            id ? 'PATCH' : 'POST',
+            payload,
             {
-                method: id ? 'PATCH' : 'POST',
-                body: JSON.stringify(payload),
+                // Dipakai saat pengiriman ulang: kalau piutang ini
+                // ternyata sudah dibatalkan lewat perangkat lain,
+                // perubahannya tidak boleh diterapkan.
+                cekPiutangTerbuka: {
+                    contactId: currentContact?.id,
+                    receivableIds: [id].filter(Boolean),
+                },
             }
         );
-        const result = await response.json();
 
         if (!result.success) {
             showToast(result.message || 'Gagal menyimpan', 'error');
@@ -673,8 +676,17 @@ async function voidReceivable(id) {
         setButtonLoading(e.currentTarget, true, 'Membatalkan...');
 
         try {
-            const response = await apiFetch('/receivables/' + id, { method: 'DELETE' });
-            const result = await response.json();
+            const result = await kirimAtauAntre(
+                '/receivables/' + id,
+                'DELETE',
+                undefined,
+                {
+                    cekPiutangTerbuka: {
+                        contactId: currentContact?.id,
+                        receivableIds: [id],
+                    },
+                }
+            );
 
             if (!result.success) {
                 showToast(result.message || 'Gagal membatalkan', 'error');
@@ -741,11 +753,11 @@ async function saveDeposit(btn) {
     setButtonLoading(btn, true, 'Menyimpan...');
 
     try {
-        const response = await apiFetch(
+        const result = await kirimAtauAntre(
             '/contacts/' + currentContact.id + '/deposits',
-            { method: 'POST', body: JSON.stringify(payload) }
+            'POST',
+            payload
         );
-        const result = await response.json();
 
         if (!result.success) {
             showToast(result.message || 'Gagal menyimpan', 'error');
@@ -794,8 +806,7 @@ async function voidDeposit(id) {
         setButtonLoading(e.currentTarget, true, 'Membatalkan...');
 
         try {
-            const response = await apiFetch('/deposits/' + id, { method: 'DELETE' });
-            const result = await response.json();
+            const result = await kirimAtauAntre('/deposits/' + id, 'DELETE');
 
             if (!result.success) {
                 showToast(result.message || 'Gagal membatalkan', 'error');
@@ -1005,11 +1016,21 @@ async function savePayment(btn) {
     setButtonLoading(btn, true, 'Memproses...');
 
     try {
-        const response = await apiFetch(
+        const result = await kirimAtauAntre(
             '/contacts/' + currentContact.id + '/payments',
-            { method: 'POST', body: JSON.stringify(payload) }
+            'POST',
+            payload,
+            {
+                // Saat transaksi ini dikirim ulang, semua piutang yang
+                // mau dilunasi harus masih terbuka. Kalau ada yang sudah
+                // lunas lewat perangkat lain, transaksinya ditahan —
+                // kalau tidak, satu piutang bisa terlunasi dua kali.
+                cekPiutangTerbuka: {
+                    contactId: currentContact.id,
+                    receivableIds: ids,
+                },
+            }
         );
-        const result = await response.json();
 
         if (!result.success) {
             showToast(result.message || 'Gagal menyimpan pembayaran', 'error');
@@ -1018,7 +1039,14 @@ async function savePayment(btn) {
 
         closeModal();
         showToast(result.message, 'success');
-        await openContact(currentContact.id);
+
+        // Saat offline, angkanya belum berubah di server — jadi layarnya
+        // tidak dimuat ulang, cukup ditandai bahwa ada antrean.
+        if (!result.offline) {
+            await openContact(currentContact.id);
+        } else if (typeof perbaruiPenandaAntrean === 'function') {
+            perbaruiPenandaAntrean();
+        }
     } catch (error) {
         console.error('savePayment:', error);
         showToast('Gagal menyimpan pembayaran', 'error');
@@ -1060,8 +1088,7 @@ async function voidPayment(id) {
         setButtonLoading(e.currentTarget, true, 'Membatalkan...');
 
         try {
-            const response = await apiFetch('/payments/' + id, { method: 'DELETE' });
-            const result = await response.json();
+            const result = await kirimAtauAntre('/payments/' + id, 'DELETE');
 
             if (!result.success) {
                 showToast(result.message || 'Gagal membatalkan', 'error');
@@ -1100,4 +1127,26 @@ function emptyBlock(text) {
 
 function errorBlock(text) {
     return `<div class="bg-red-50 rounded-xl p-4"><p class="text-red-500 text-center">${escapeHtml(text)}</p></div>`;
+}
+
+// ---------- Integrasi offline ----------
+//
+// Didaftarkan ke offline.js supaya setelah antrean terkirim, layar
+// yang sedang tampil dimuat ulang dengan data terbaru dari server.
+
+if (typeof daftarMuatUlang === 'function') {
+    daftarMuatUlang(() => {
+        if (!currentContact) return;
+
+        const layarAktif = document.querySelector('[id$="Screen"]:not(.hidden)');
+        if (!layarAktif) return;
+
+        if (layarAktif.id === 'contactHistoryScreen') {
+            openContact(currentContact.id, 'contactHistoryScreen');
+        } else if (layarAktif.id === 'contactDetailScreen') {
+            openContact(currentContact.id);
+        } else if (layarAktif.id === 'contactsScreen') {
+            loadContacts();
+        }
+    });
 }
