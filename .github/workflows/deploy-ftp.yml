@@ -1,0 +1,66 @@
+name: Deploy ke cPanel (FTP)
+
+# Deploy manual lewat tombol Run workflow, atau otomatis saat push ke main.
+# Sengaja manual dulu supaya tidak ada deploy tak sengaja saat masih menyiapkan.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Upload ke hosting
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: curl, mbstring
+          coverage: none
+
+      # Vendor di-build di runner, bukan di server — server tidak perlu composer.
+      - name: Install dependencies (production)
+        run: composer install --prefer-dist --no-dev --no-progress --no-interaction --optimize-autoloader
+
+      - name: Buat file .env dari secrets
+        run: |
+          cat > .env <<EOF
+          SUPABASE_URL=${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
+          EOF
+
+      - name: Cek konfigurasi terisi
+        run: |
+          if ! grep -q "https://" .env; then
+            echo "::error::SUPABASE_URL belum diisi di repository variables."
+            exit 1
+          fi
+          echo "OK: konfigurasi terisi."
+
+      # cPanel mengunci document root ke folder subdomain, jadi isi public/
+      # ikut di-upload dan strukturnya jadi satu folder. index.php sudah
+      # menangani dua struktur sekaligus, jadi tidak perlu diubah di sini.
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Path folder subdomain di server, diakhiri garis miring.
+          # Contoh: /home/USERNAME/rfapps.domainkamu.com/
+          server-dir: ${{ vars.FTP_TARGET_DIR }}
+          # .htaccess SENGAJA tidak di-exclude — file itu yang melindungi .env
+          # dan folder internal di struktur satu-folder.
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/node_modules/**
+            **/database/**
+            **/README.md
+            **/LICENSE
+            **/.env.example

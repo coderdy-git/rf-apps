@@ -1,0 +1,19 @@
+# Lapisan pengaman tambahan.
+#
+# FIle ini hanya berguna kalau document root domain mengarah ke root project
+# (bukan ke folder public/). Kalau document root sudah benar mengarah ke public/,
+# file ini tidak akan pernah dibaca — dan itu memang kondisi yang diinginkan.
+#
+# Dipasang sebagai jaring pengaman: kalau konfigurasi subdomain salah dan
+# document root mengarah ke root project, file ini mencegah kode dan
+# kredensial terekspos lewat browser.
+
+# Tolak semua akses ke folder internal
+RedirectMatch 404 ^/(src|vendor|database)(/|$)
+
+# Tolak akses ke file konfigurasi dan dokumentasi
+<FilesMatch "^\.env|composer\.(json|lock)$|^README\.md$|^LICENSE$">
+    Require all denied
+</FilesMatch>
+
+Options -Indexes

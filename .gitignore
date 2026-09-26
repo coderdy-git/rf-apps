@@ -3,8 +3,15 @@
 .env.local
 .env.*.local
 
-# Vendor dependencies
-/vendor
+# Vendor dependencies SENGAJA di-commit.
+#
+# cPanel Git Version Control hanya bisa `git pull`, tidak bisa menjalankan
+# composer install. Karena itu vendor/ ikut masuk repo supaya aplikasi
+# langsung jalan setelah pull.
+#
+# Setiap kali composer.json berubah, jalankan:
+#   composer install --no-dev --optimize-autoloader
+# lalu commit vendor/ yang baru.
 
 # IDE
 .idea
