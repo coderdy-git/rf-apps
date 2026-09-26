@@ -2,6 +2,7 @@
     "name": "rizky/attendance-app",
     "description": "Simple attendance tracking application with Supabase",
     "type": "project",
+    "license": "MIT",
     "require": {
         "php": "^8.0",
         "vlucas/phpdotenv": "^5.5"

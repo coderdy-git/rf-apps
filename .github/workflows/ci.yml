@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  php:
+    name: PHP lint & syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: curl, mbstring
+          coverage: none
+
+      - name: Cek syntax semua file PHP
+        run: |
+          set -e
+          find . -path ./vendor -prune -o -name '*.php' -print0 \
+            | xargs -0 -n1 php -l
+
+      - name: Validasi composer.json
+        run: composer validate --strict --no-check-publish
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+  javascript:
+    name: JavaScript syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cek syntax semua file JS
+        run: |
+          set -e
+          find public/assets/js -name '*.js' -print0 \
+            | xargs -0 -n1 node --check
+
+  security:
+    name: Cek kebocoran kredensial
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Pastikan .env tidak pernah ter-commit
+        run: |
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env ter-track di git. Hapus dari repo dan rotate kredensialnya."
+            exit 1
+          fi
+          echo "OK: .env tidak ter-track."
+
+      # JWT Supabase memuat role di payload-nya. Cek nilai tokennya,
+      # bukan sekadar kata "service_role" yang bisa muncul di dokumentasi.
+      - name: Pastikan service_role key tidak bocor
+        run: |
+          if grep -rIn "eyJ[A-Za-z0-9_-]\{10,\}\.[A-Za-z0-9_-]\{10,\}" . \
+              --exclude-dir=.git \
+              --exclude-dir=vendor \
+              --exclude-dir=.github \
+              --exclude='*.example' \
+            | grep -i "service_role"; then
+            echo "::error::Ditemukan service_role key di kode. Key ini tidak boleh ada di repo."
+            exit 1
+          fi
+          echo "OK: tidak ada service_role key."
+
+      - name: Scan .env secara historis
+        run: |
+          if git log --all --full-history --oneline -- .env | grep -q .; then
+            echo "::error::.env pernah ter-commit di history. Perlu dibersihkan dan kredensial di-rotate."
+            exit 1
+          fi
+          echo "OK: .env tidak ada di history."
