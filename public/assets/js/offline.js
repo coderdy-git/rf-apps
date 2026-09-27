@@ -6,8 +6,9 @@
 // Bergantung pada app.js (apiFetch, showToast) dan auth.js (currentUser).
 
 const DB_NAMA = 'rf-offline';
-const DB_VERSI = 1;
+const DB_VERSI = 2;              // naik dari 1: menambah toko 'cache'
 const TOKO = 'antrean';
+const TOKO_CACHE = 'cache';      // simpanan data supaya layar tampil langsung
 
 let dbTerbuka = null;
 
@@ -45,10 +46,17 @@ function bukaDb() {
 
         permintaan.onupgradeneeded = (e) => {
             const db = e.target.result;
+
             if (!db.objectStoreNames.contains(TOKO)) {
                 const toko = db.createObjectStore(TOKO, { keyPath: 'id' });
                 // Diurutkan waktu dibuat supaya terkirim sesuai urutan input
                 toko.createIndex('dibuat', 'dibuat');
+            }
+
+            // Toko simpanan data. Ditambahkan di versi 2, jadi perangkat
+            // yang sudah pernah membuka aplikasi akan membuatnya di sini.
+            if (!db.objectStoreNames.contains(TOKO_CACHE)) {
+                db.createObjectStore(TOKO_CACHE, { keyPath: 'kunci' });
             }
         };
 
@@ -528,3 +536,120 @@ document.addEventListener('DOMContentLoaded', () => {
     // Coba kirim antrean yang tersisa dari sesi sebelumnya
     setTimeout(kirimAntrean, 2000);
 });
+
+// ============ SIMPANAN DATA ============
+//
+// Menyimpan data yang pernah dibuka supaya layarnya bisa langsung
+// tampil tanpa menunggu server. Setelah itu server tetap dihubungi di
+// belakang layar, dan tampilannya diganti begitu data terbaru tiba.
+
+async function simpanCache(kunci, data) {
+    try {
+        const db = await bukaDb();
+
+        await new Promise((selesai, gagal) => {
+            const tx = db.transaction(TOKO_CACHE, 'readwrite');
+            tx.objectStore(TOKO_CACHE).put({ kunci, data, waktu: Date.now() });
+            tx.oncomplete = selesai;
+            tx.onerror = () => gagal(tx.error);
+        });
+    } catch (error) {
+        // Gagal menyimpan bukan alasan menggagalkan alur — aplikasi
+        // tetap jalan, hanya tanpa percepatan.
+        console.warn('Gagal menyimpan cache:', error.message);
+    }
+}
+
+async function ambilCache(kunci) {
+    try {
+        const db = await bukaDb();
+
+        return await new Promise((selesai) => {
+            const tx = db.transaction(TOKO_CACHE, 'readonly');
+            const permintaan = tx.objectStore(TOKO_CACHE).get(kunci);
+            permintaan.onsuccess = () => selesai(permintaan.result ?? null);
+            permintaan.onerror = () => selesai(null);
+        });
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Kosongkan simpanan data.
+ *
+ * Dipanggil saat logout supaya data satu akun tidak terbaca oleh akun
+ * lain yang masuk di perangkat yang sama.
+ */
+async function bersihkanCache() {
+    try {
+        const db = await bukaDb();
+
+        await new Promise((selesai) => {
+            const tx = db.transaction(TOKO_CACHE, 'readwrite');
+            tx.objectStore(TOKO_CACHE).clear();
+            tx.oncomplete = selesai;
+            tx.onerror = selesai;
+        });
+    } catch {
+        // Diamkan saja
+    }
+}
+
+/**
+ * Muat data dengan pola tampil-dulu-perbarui-kemudian.
+ *
+ * $kunci        nama simpanan, misal 'kontak:daftar'
+ * $gambarAwal   dipanggil dengan data tersimpan, kalau ada
+ * $ambil        fungsi yang mengambil data terbaru dari server
+ * $gambarBaru   dipanggil setelah data server tiba
+ *
+ * Kalau belum ada simpanan, $gambarAwal dilewati dan user melihat
+ * indikator memuat seperti biasa.
+ */
+async function muatCepat(kunci, gambarAwal, ambil, gambarBaru) {
+    const tersimpan = await ambilCache(kunci);
+
+    if (tersimpan) {
+        gambarAwal(tersimpan.data, tersimpan.waktu);
+    }
+
+    try {
+        const baru = await ambil();
+
+        // null berarti datanya tidak valid (misal kontak sudah dihapus) —
+        // jangan timpa simpanan lama dengan kekosongan.
+        if (baru === null || baru === undefined) {
+            return tersimpan ? tersimpan.data : null;
+        }
+
+        await simpanCache(kunci, baru);
+        gambarBaru(baru);
+
+        return baru;
+    } catch (error) {
+        if (tersimpan) {
+            return tersimpan.data;
+        }
+        throw error;
+    }
+}
+
+/**
+ * Selisih waktu dalam kalimat singkat: "baru saja", "3 menit lalu".
+ */
+function waktuLalu(milidetik) {
+    if (!milidetik) return '';
+
+    const detik = Math.floor((Date.now() - milidetik) / 1000);
+    if (detik < 10) return 'baru saja';
+    if (detik < 60) return `${detik} detik lalu`;
+
+    const menit = Math.floor(detik / 60);
+    if (menit < 60) return `${menit} menit lalu`;
+
+    const jam = Math.floor(menit / 60);
+    if (jam < 24) return `${jam} jam lalu`;
+
+    return `${Math.floor(jam / 24)} hari lalu`;
+}

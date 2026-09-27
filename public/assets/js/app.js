@@ -133,12 +133,12 @@ function showScreen(screenId) {
 
     // Muat data untuk layar tertentu.
     //
-    // Dipanggil lewat muatSekali() supaya berpindah-pindah layar tidak
-    // memicu request berulang. Sebelumnya setiap kali kembali ke daftar
-    // kontak, datanya diambil ulang dari server — itulah yang membuat
-    // aplikasi sering terlihat memuat.
+    // Fungsi pemuatnya sendiri yang menangani percepatan: data tersimpan
+    // ditampilkan lebih dulu, lalu diperbarui dari server di belakang
+    // layar. Jadi tidak ada layar "Memuat..." untuk data yang pernah
+    // dibuka sebelumnya.
     if (screenId === 'historyScreen') {
-        muatSekali('riwayatAbsen', loadHistory);
+        loadHistory();
     }
 
     if (screenId === 'settingsScreen') {
@@ -147,44 +147,13 @@ function showScreen(screenId) {
     }
 
     if (screenId === 'contactsScreen' && typeof loadContacts === 'function') {
-        muatSekali('daftarKontak', loadContacts);
+        loadContacts();
     }
 
     if (screenId === 'antreanScreen' && typeof renderAntreanScreen === 'function') {
         // Antrean selalu dimuat ulang — isinya bisa berubah kapan saja
         // dan justru itu yang perlu dilihat user.
         renderAntreanScreen();
-    }
-}
-
-/**
- * Jalankan pemuat data hanya kalau hasil sebelumnya sudah kedaluwarsa.
- *
- * Dipakai supaya berpindah antar layar tidak selalu memicu request.
- * Data dianggap masih segar selama $masaBerlaku milidetik.
- *
- * Panggil lupakanCache() setelah ada perubahan data, supaya muatan
- * berikutnya benar-benar mengambil yang terbaru.
- */
-const cacheLayar = {};
-const MASA_BERLAKU = 30000;
-
-function muatSekali(kunci, pemuat) {
-    const terakhir = cacheLayar[kunci];
-
-    if (terakhir && Date.now() - terakhir < MASA_BERLAKU) {
-        return;
-    }
-
-    cacheLayar[kunci] = Date.now();
-    pemuat();
-}
-
-function lupakanCache(kunci = null) {
-    if (kunci === null) {
-        Object.keys(cacheLayar).forEach(k => delete cacheLayar[k]);
-    } else {
-        delete cacheLayar[kunci];
     }
 }
 

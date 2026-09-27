@@ -131,28 +131,47 @@ document.addEventListener('keydown', (e) => {
 
 async function loadContacts() {
     const list = document.getElementById('contactList');
-
-    list.innerHTML = loadingBlock('Memuat kontak...');
+    let adaSimpanan = false;
 
     try {
-        const response = await apiFetch('/contacts', { method: 'GET' });
-        const result = await response.json();
+        await muatCepat(
+            'kontak:daftar',
 
-        if (!result.success) {
-            list.innerHTML = errorBlock(result.message || 'Gagal memuat kontak');
-            return;
-        }
+            // Data tersimpan tampil seketika — tidak ada layar memuat
+            (tersimpan) => {
+                adaSimpanan = true;
+                gambarDaftarKontak(list, tersimpan);
+            },
 
-        if (!result.data.length) {
-            list.innerHTML = emptyBlock('Belum ada kontak');
-            return;
-        }
+            // Ambil versi terbaru di belakang layar
+            async () => {
+                const response = await apiFetch('/contacts', { method: 'GET' });
+                const result = await response.json();
+                return result.success ? result.data : null;
+            },
 
-        list.innerHTML = result.data.map(renderContactRow).join('');
+            (baru) => gambarDaftarKontak(list, baru)
+        );
     } catch (error) {
         console.error('loadContacts:', error);
         list.innerHTML = errorBlock('Gagal memuat kontak');
+        return;
     }
+
+    // Belum pernah dibuka dan server juga tidak menjawab — tampilkan
+    // indikator memuat supaya layarnya tidak kosong tanpa penjelasan.
+    if (!adaSimpanan && !list.innerHTML.trim()) {
+        list.innerHTML = loadingBlock('Memuat kontak...');
+    }
+}
+
+function gambarDaftarKontak(list, kontak) {
+    if (!kontak || !kontak.length) {
+        list.innerHTML = emptyBlock('Belum ada kontak');
+        return;
+    }
+
+    list.innerHTML = kontak.map(renderContactRow).join('');
 }
 
 function renderContactRow(contact) {
@@ -208,7 +227,6 @@ async function segarkanSetelahTransaksi(hasil, returnTo = 'contactDetailScreen')
         return;
     }
 
-    lupakanCache('daftarKontak');
     await openContact(currentContact.id, returnTo);
 }
 
@@ -228,56 +246,56 @@ async function openContact(id, returnTo = 'contactDetailScreen') {
     const detailBody = document.getElementById('contactDetailBody');
     const historyBody = document.getElementById('contactHistoryBody');
 
+    // Indikator memuat hanya dipasang kalau belum ada isi. Kalau data
+    // tersimpan tersedia, langsung tampil dan tidak perlu loading.
     const activeBody = returnTo === 'contactHistoryScreen' ? historyBody : detailBody;
-    activeBody.innerHTML = loadingBlock('Memuat detail...');
-
-    if (returnTo === 'contactDetailScreen') {
-        document.getElementById('contactDetailName').textContent = 'Memuat...';
+    if (!activeBody.innerHTML.trim()) {
+        activeBody.innerHTML = loadingBlock('Memuat detail...');
     }
 
     try {
-        // Satu request saja: endpoint ini mengembalikan kontak, piutang,
-        // deposit, dan pembayaran sekaligus.
-        //
-        // Sebelumnya tiga request terpisah. Tiap request berarti satu
-        // perjalanan penuh ke Supabase untuk verifikasi token, jadi
-        // tiga request = tiga kali verifikasi — itu yang membuat
-        // halaman terasa lambat.
-        const response = await apiFetch('/contacts/' + id, { method: 'GET' });
-        const result = await response.json();
+        await muatCepat(
+            'kontak:' + id,
 
-        if (!result.success) {
-            detailBody.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
-            historyBody.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
-            document.getElementById('contactDetailPhone').textContent = '';
-            return;
-        }
+            // Tampilkan versi tersimpan lebih dulu
+            (tersimpan) => gambarDetailKontak(tersimpan),
 
-        currentContact = result.data.contact;
-        currentReceivables = result.data.receivables ?? [];
-        currentDeposits = result.data.deposits ?? [];
-        currentPayments = result.data.payments ?? [];
+            // Lalu ambil versi terbaru di belakang layar
+            async () => {
+                const response = await apiFetch('/contacts/' + id, { method: 'GET' });
+                const result = await response.json();
+                return result.success ? result.data : null;
+            },
 
-        // Header detail kontak
-        document.getElementById('contactDetailName').textContent = currentContact.name;
-        document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
-
-        // Ringkasan diam di atas, daftar piutang di area yang bergulir
-        document.getElementById('contactSummary').innerHTML =
-            renderContactSummary(currentContact);
-
-        detailBody.innerHTML = renderContactDetail(result.data);
-        bindDetailActions();
-
-        // Render halaman riwayat, tapi jangan pindah ke sana.
-        // renderHistoryContent() hanya mengisi isinya.
-        renderHistoryContent();
+            (baru) => gambarDetailKontak(baru)
+        );
     } catch (error) {
         console.error('openContact:', error);
         const msg = errorBlock('Gagal memuat detail kontak');
         detailBody.innerHTML = msg;
         historyBody.innerHTML = msg;
     }
+}
+
+// Gambar seluruh bagian halaman detail dari satu objek data
+function gambarDetailKontak(data) {
+    if (!data || !data.contact) return;
+
+    currentContact = data.contact;
+    currentReceivables = data.receivables ?? [];
+    currentDeposits = data.deposits ?? [];
+    currentPayments = data.payments ?? [];
+
+    document.getElementById('contactDetailName').textContent = currentContact.name;
+    document.getElementById('contactDetailPhone').textContent = currentContact.phone || '';
+    document.getElementById('contactSummary').innerHTML =
+        renderContactSummary(currentContact);
+
+    document.getElementById('contactDetailBody').innerHTML = renderContactDetail(data);
+    bindDetailActions();
+
+    // Isi halaman riwayat juga, tanpa memindahkan layar
+    renderHistoryContent();
 }
 
 // Ringkasan saldo — bagian yang diam di atas, tidak ikut bergulir

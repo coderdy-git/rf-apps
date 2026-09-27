@@ -98,6 +98,12 @@ async function signOut() {
     accessToken = null;
     currentUser = null;
 
+    // Bersihkan data tersimpan supaya akun berikutnya yang login di
+    // perangkat ini tidak melihat data akun sebelumnya.
+    if (typeof bersihkanCache === 'function') {
+        await bersihkanCache();
+    }
+
     // Kembali ke landing page tanpa reload halaman
     if (typeof renderAuthState === 'function') {
         renderAuthState();
