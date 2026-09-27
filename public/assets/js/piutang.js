@@ -301,9 +301,9 @@ function renderContactSummary(contact) {
                     ${rupiah(deposit)}
                 </span>
                 <button data-action="add-deposit"
-                        class="absolute top-1/2 -translate-y-1/2 right-3 min-w-[36px] min-h-[36px] rounded-lg bg-primary hover:bg-secondary text-white flex items-center justify-center active:scale-95 transition-all"
+                        class="absolute top-1/2 -translate-y-1/2 right-2 min-w-[44px] min-h-[44px] rounded-lg text-gray-400 hover:text-primary hover:bg-gray-100 flex items-center justify-center active:scale-95 transition-all"
                         aria-label="Setor deposit">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
                 </button>
