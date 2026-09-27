@@ -22,31 +22,23 @@ deployment:
     # ---------------------------------------------------------------
     - export DEPLOYPATH=/home/rizkyfau/apps.rizkyfauzi.com/public
 
-    # Folder induk, tempat src/ dan vendor/ akan ditaruh.
-    # Dirname tanpa garis miring di akhir supaya hasilnya bersih.
-    - export BASEPATH=$(dirname ${DEPLOYPATH%/})
+    # Folder repo, tempat src/ dan vendor/ berada.
+    # Satu level di atas document root.
+    - export BASEPATH=/home/rizkyfau/apps.rizkyfauzi.com
 
-    # Pastikan folder tujuan ada
     - /bin/mkdir -p $DEPLOYPATH
-    - /bin/mkdir -p $BASEPATH
 
     # Isi public/ ke document root.
-    # Titik di akhir "public/." berarti isinya, bukan foldernya —
-    # tanpa itu hasilnya jadi public/public/.
+    # Titik di akhir "public/." berarti isinya, bukan foldernya.
+    # Kalau pakai "public" saja, hasilnya jadi public/public/.
     - /bin/cp -R public/. $DEPLOYPATH
 
-    # Kode internal ke folder induk.
-    # -R pada folder tujuan ikut membuatnya kalau belum ada.
-    - /bin/cp -R src $BASEPATH/
-    - /bin/cp -R vendor $BASEPATH/
+    # src dan vendor sudah ada di $BASEPATH karena itu folder repo itu
+    # sendiri — tidak perlu disalin. Menyalinnya justru menghasilkan
+    # src/src/ dan vendor/vendor/, karena cp -R menyalin foldernya.
 
-    # .env sengaja tidak disalin. File itu dibuat manual lewat
-    # File Manager supaya kredensial tidak pernah masuk repo.
-
-    # Bersihkan file yang tidak perlu diakses publik.
-    - /bin/rm -f $DEPLOYPATH/.htaccess.bak
+    # .env juga tidak disentuh — dibuat manual di $BASEPATH.
 
     # Laporkan hasilnya supaya terlihat di log deploy.
     - echo "Deploy selesai. Document root: $DEPLOYPATH"
-    - echo "Kode internal di: $BASEPATH"
     - /bin/ls -la $DEPLOYPATH | head -20
