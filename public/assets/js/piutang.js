@@ -357,12 +357,7 @@ function renderHistoryContent() {
 
     body.innerHTML = `
         <!-- Deposit -->
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold text-gray-700">Deposit</h3>
-            <button data-action="add-deposit" class="text-primary hover:text-secondary text-sm font-semibold min-h-[44px] px-2">
-                + Setor
-            </button>
-        </div>
+        <h3 class="font-semibold text-gray-700 mb-3">Deposit</h3>
         <div class="space-y-2 mb-8">
             ${currentDeposits.length
                 ? currentDeposits.map(renderDepositRow).join('')
@@ -377,9 +372,6 @@ function renderHistoryContent() {
                 : '<div class="bg-white rounded-xl p-4 text-center text-gray-500 text-sm">Belum ada pembayaran</div>'}
         </div>
     `;
-
-    body.querySelector('[data-action="add-deposit"]')
-        ?.addEventListener('click', openDepositForm);
 
     body.querySelectorAll('[data-action="void-deposit"]').forEach(btn => {
         btn.addEventListener('click', () => voidDeposit(btn.dataset.id));
