@@ -1,0 +1,52 @@
+---
+# Konfigurasi deploy cPanel (Git Version Control → Deploy HEAD Commit).
+#
+# Struktur repo kita:
+#   public/   → isi yang harus jadi document root
+#   src/      → kode internal, tidak diakses browser
+#   vendor/   → dependency, sudah ikut ter-commit
+#   .env      → dibuat manual, TIDAK ada di repo
+#
+# cPanel men-deploy dari root repo, sementara document root mengarah
+# ke folder public/. Jadi isi public/ dipindahkan ke document root,
+# dan src/ + vendor/ ditaruh tepat di atasnya — di situ index.php
+# mencarinya (lihat pencarian $baseDir di public/index.php).
+
+deployment:
+  tasks:
+    # ---------------------------------------------------------------
+    # GANTI BARIS DI BAWAH INI sesuai document root kamu.
+    # Cek di cPanel → Domains → Document Root.
+    #
+    # Contoh: /home/rizkyfau/apps.rizkyfauzi.com/public
+    # ---------------------------------------------------------------
+    - export DEPLOYPATH=/home/rizkyfau/apps.rizkyfauzi.com/public
+
+    # Folder induk, tempat src/ dan vendor/ akan ditaruh.
+    # Dirname tanpa garis miring di akhir supaya hasilnya bersih.
+    - export BASEPATH=$(dirname ${DEPLOYPATH%/})
+
+    # Pastikan folder tujuan ada
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/mkdir -p $BASEPATH
+
+    # Isi public/ ke document root.
+    # Titik di akhir "public/." berarti isinya, bukan foldernya —
+    # tanpa itu hasilnya jadi public/public/.
+    - /bin/cp -R public/. $DEPLOYPATH
+
+    # Kode internal ke folder induk.
+    # -R pada folder tujuan ikut membuatnya kalau belum ada.
+    - /bin/cp -R src $BASEPATH/
+    - /bin/cp -R vendor $BASEPATH/
+
+    # .env sengaja tidak disalin. File itu dibuat manual lewat
+    # File Manager supaya kredensial tidak pernah masuk repo.
+
+    # Bersihkan file yang tidak perlu diakses publik.
+    - /bin/rm -f $DEPLOYPATH/.htaccess.bak
+
+    # Laporkan hasilnya supaya terlihat di log deploy.
+    - echo "Deploy selesai. Document root: $DEPLOYPATH"
+    - echo "Kode internal di: $BASEPATH"
+    - /bin/ls -la $DEPLOYPATH | head -20
