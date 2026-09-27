@@ -5,6 +5,7 @@ const API_BASE = '/api';
 document.addEventListener('DOMContentLoaded', async () => {
     updateTime();
     setInterval(updateTime, 1000);
+    tampilkanVersi();
 
     const loggedIn = await initAuth();
     renderAuthState();
@@ -13,6 +14,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadTodayStatus();
     }
 });
+
+/**
+ * Tampilkan versi aplikasi di bawah brand.
+ *
+ * Sumbernya /api/health yang membaca commit terakhir dari git di server.
+ * Jadi angka yang tampil benar-benar menandakan kode mana yang sedang
+ * jalan di produksi — bukan versi yang ditulis manual yang bisa lupa
+ * diperbarui.
+ */
+async function tampilkanVersi() {
+    const el = document.getElementById('versiApp');
+    if (!el) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/health`, { cache: 'no-store' });
+        const hasil = await response.json();
+
+        el.textContent = hasil.commit ? `v${hasil.commit}` : 'v?';
+        el.title = hasil.deployed_at ? `Deploy: ${hasil.deployed_at}` : '';
+    } catch {
+        // Tidak bisa ambil versi bukan alasan untuk mengganggu user
+        el.textContent = 'v?';
+    }
+}
 
 // Called by auth.js whenever the session changes
 function onAuthChanged(session) {

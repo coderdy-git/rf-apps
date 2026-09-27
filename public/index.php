@@ -37,6 +37,41 @@ $dotenv->load();
 // Start session
 session_start();
 
+/**
+ * Ambil versi commit pendek dari git, untuk ditampilkan di aplikasi.
+ *
+ * Membaca file .git/HEAD langsung, bukan menjalankan perintah git —
+ * supaya tidak bergantung pada git terpasang atau shell_exec diizinkan.
+ * Kalau tidak bisa dibaca (misalnya bukan instalasi git), kembalikan
+ * null dan aplikasi tetap jalan normal.
+ */
+function infoCommit(string $baseDir): ?string
+{
+    $headFile = $baseDir . '/.git/HEAD';
+
+    if (!is_readable($headFile)) {
+        return null;
+    }
+
+    $head = trim((string) file_get_contents($headFile));
+
+    // HEAD normalnya berisi "ref: refs/heads/main"
+    if (strpos($head, 'ref:') === 0) {
+        $refPath = $baseDir . '/.git/' . trim(substr($head, 4));
+
+        if (!is_readable($refPath)) {
+            return null;
+        }
+
+        $head = trim((string) file_get_contents($refPath));
+    }
+
+    // Commit hash penuh, ambil 7 karakter pertama
+    return preg_match('/^[0-9a-f]{7,40}$/', $head)
+        ? substr($head, 0, 7)
+        : null;
+}
+
 // Simple routing
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
@@ -97,6 +132,7 @@ if (strpos($uri, '/api/') === 0) {
                 'status' => 'ok',
                 'timestamp' => date('Y-m-d H:i:s'),
                 'php_version' => PHP_VERSION,
+                'commit' => infoCommit($baseDir),
             ]);
             exit;
     }
