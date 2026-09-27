@@ -208,6 +208,7 @@ async function segarkanSetelahTransaksi(hasil, returnTo = 'contactDetailScreen')
         return;
     }
 
+    lupakanCache('daftarKontak');
     await openContact(currentContact.id, returnTo);
 }
 
@@ -235,15 +236,15 @@ async function openContact(id, returnTo = 'contactDetailScreen') {
     }
 
     try {
-        // Kontak, deposit, dan pembayaran diambil bersamaan — ketiganya
-        // independen, jadi tidak perlu menunggu satu selesai baru mulai.
-        const [contactRes, depositRes, paymentRes] = await Promise.all([
-            apiFetch('/contacts/' + id, { method: 'GET' }),
-            apiFetch('/contacts/' + id + '/deposits', { method: 'GET' }),
-            apiFetch('/contacts/' + id + '/payments', { method: 'GET' }),
-        ]);
-
-        const result = await contactRes.json();
+        // Satu request saja: endpoint ini mengembalikan kontak, piutang,
+        // deposit, dan pembayaran sekaligus.
+        //
+        // Sebelumnya tiga request terpisah. Tiap request berarti satu
+        // perjalanan penuh ke Supabase untuk verifikasi token, jadi
+        // tiga request = tiga kali verifikasi — itu yang membuat
+        // halaman terasa lambat.
+        const response = await apiFetch('/contacts/' + id, { method: 'GET' });
+        const result = await response.json();
 
         if (!result.success) {
             detailBody.innerHTML = errorBlock(result.message || 'Kontak tidak ditemukan');
@@ -252,13 +253,10 @@ async function openContact(id, returnTo = 'contactDetailScreen') {
             return;
         }
 
-        const depositResult = await depositRes.json();
-        const paymentResult = await paymentRes.json();
-
         currentContact = result.data.contact;
         currentReceivables = result.data.receivables ?? [];
-        currentDeposits = depositResult.success ? (depositResult.data.history ?? []) : [];
-        currentPayments = paymentResult.success ? (paymentResult.data ?? []) : [];
+        currentDeposits = result.data.deposits ?? [];
+        currentPayments = result.data.payments ?? [];
 
         // Header detail kontak
         document.getElementById('contactDetailName').textContent = currentContact.name;

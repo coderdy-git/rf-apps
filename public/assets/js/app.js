@@ -131,21 +131,60 @@ function showScreen(screenId) {
     // Show selected screen
     document.getElementById(screenId).classList.remove('hidden');
 
-    // Load data for specific screens
+    // Muat data untuk layar tertentu.
+    //
+    // Dipanggil lewat muatSekali() supaya berpindah-pindah layar tidak
+    // memicu request berulang. Sebelumnya setiap kali kembali ke daftar
+    // kontak, datanya diambil ulang dari server — itulah yang membuat
+    // aplikasi sering terlihat memuat.
     if (screenId === 'historyScreen') {
-        loadHistory();
+        muatSekali('riwayatAbsen', loadHistory);
     }
 
     if (screenId === 'settingsScreen') {
+        // Cek koneksi selalu dijalankan — itu memang tujuan halamannya
         checkConnection();
     }
 
     if (screenId === 'contactsScreen' && typeof loadContacts === 'function') {
-        loadContacts();
+        muatSekali('daftarKontak', loadContacts);
     }
 
     if (screenId === 'antreanScreen' && typeof renderAntreanScreen === 'function') {
+        // Antrean selalu dimuat ulang — isinya bisa berubah kapan saja
+        // dan justru itu yang perlu dilihat user.
         renderAntreanScreen();
+    }
+}
+
+/**
+ * Jalankan pemuat data hanya kalau hasil sebelumnya sudah kedaluwarsa.
+ *
+ * Dipakai supaya berpindah antar layar tidak selalu memicu request.
+ * Data dianggap masih segar selama $masaBerlaku milidetik.
+ *
+ * Panggil lupakanCache() setelah ada perubahan data, supaya muatan
+ * berikutnya benar-benar mengambil yang terbaru.
+ */
+const cacheLayar = {};
+const MASA_BERLAKU = 30000;
+
+function muatSekali(kunci, pemuat) {
+    const terakhir = cacheLayar[kunci];
+
+    if (terakhir && Date.now() - terakhir < MASA_BERLAKU) {
+        return;
+    }
+
+    cacheLayar[kunci] = Date.now();
+    pemuat();
+}
+
+function lupakanCache(kunci = null) {
+    if (kunci === null) {
+        Object.keys(cacheLayar).forEach(k => delete cacheLayar[k]);
+    } else {
+        delete cacheLayar[kunci];
     }
 }
 

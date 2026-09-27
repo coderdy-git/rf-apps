@@ -267,11 +267,12 @@ class PaymentModel
     /**
      * Riwayat transaksi pembayaran satu kontak.
      */
-    public function getByContact(string $contactId): array
+    public function getByContact(string $contactId, int $limit = 50): array
     {
         $endpoint = 'payments?contact_id=eq.' . $contactId
             . '&is_void=eq.false'
-            . '&order=date.desc,created_at.desc';
+            . '&order=date.desc,created_at.desc'
+            . '&limit=' . $limit;
 
         $result = $this->db->request($endpoint);
 

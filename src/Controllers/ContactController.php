@@ -3,18 +3,24 @@
 namespace App\Controllers;
 
 use App\Models\ContactModel;
+use App\Models\DepositModel;
+use App\Models\PaymentModel;
 use App\Models\ReceivableModel;
 
 class ContactController extends BaseController
 {
     private ContactModel $contactModel;
     private ReceivableModel $receivableModel;
+    private DepositModel $depositModel;
+    private PaymentModel $paymentModel;
 
     public function __construct()
     {
         parent::__construct();
         $this->contactModel = new ContactModel($this->db);
         $this->receivableModel = new ReceivableModel($this->db);
+        $this->depositModel = new DepositModel($this->db);
+        $this->paymentModel = new PaymentModel($this->db);
     }
 
     /**
@@ -49,11 +55,17 @@ class ContactController extends BaseController
             return ['success' => false, 'message' => 'Kontak tidak ditemukan', 'data' => null];
         }
 
+        // Deposit dan pembayaran dikirim sekaligus di sini, bukan lewat
+        // endpoint terpisah. Halaman detail membutuhkan ketiganya, dan
+        // tiap request tambahan berarti satu perjalanan penuh ke Supabase
+        // untuk verifikasi token — itu yang membuat halaman terasa lambat.
         return [
             'success' => true,
             'data' => [
                 'contact' => $contact,
                 'receivables' => $this->receivableModel->getByContact($id),
+                'deposits' => $this->depositModel->getHistory($id),
+                'payments' => $this->paymentModel->getByContact($id),
             ],
         ];
     }

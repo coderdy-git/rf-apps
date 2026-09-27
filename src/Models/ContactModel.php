@@ -19,10 +19,11 @@ class ContactModel
      * contact_summary sudah menghitung total piutang aktif dan saldo
      * deposit di sisi database, jadi PHP tidak perlu agregasi manual.
      */
-    public function getAll(string $userId, string $search = ''): array
+    public function getAll(string $userId, string $search = '', int $limit = 100): array
     {
         $endpoint = 'contact_summary?user_id=eq.' . $userId
-            . '&order=name.asc';
+            . '&order=name.asc'
+            . '&limit=' . $limit;
 
         if ($search !== '') {
             // ilike = case-insensitive; tanda * adalah wildcard PostgREST
