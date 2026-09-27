@@ -11,7 +11,16 @@
  *                     tidak berubah.
  */
 
-const VERSI = 'v1';
+/**
+ * Versi cache diambil dari parameter di URL pendaftaran service worker
+ * (lihat assets/js/pwa.js), yang isinya commit terakhir aplikasi.
+ *
+ * Dengan begitu setiap deploy menghasilkan nama cache yang baru, dan
+ * cache lama otomatis dibuang di event activate. Sebelumnya versi ini
+ * ditulis manual dan tidak pernah berubah, sehingga perangkat user
+ * terus menyajikan aset lama setelah aplikasi diperbarui.
+ */
+const VERSI = new URL(self.location.href).searchParams.get('v') || 'dev';
 const CACHE_ASET = `rf-aset-${VERSI}`;
 const CACHE_CDN = `rf-cdn-${VERSI}`;
 
